@@ -1,21 +1,21 @@
-# TZA 2008 data preperation
-
+# TZA 2008 data preperation - year1
+# 1. set working directory - may need to change this
 setwd("c:/Users/morle001/Dropbox/Micro_IPOP")
 
-x <- c("foreign", "stringr", "gdata", "car", "reshape2", "RColorBrewer", "rgdal", "raster", "plyr")
-lapply(x, library, character.only = TRUE)
-library(dplyr)
-source("./Analysis/Functions/plus.R") 
-source("./Analysis/Functions/missing.plot.R") 
-source("./Analysis/Functions/multi.merge.R")
+# 2. set some options
 options(scipen = 999) # surpress scientific notation
 options("stringsAsFactors" = FALSE) # ensures that character data that is loaded (e.g. csv) is not turned into factors
 options(digits = 4)
 
-CropCodes <- read.xls("Data/Tanzania/2010_11/Other/CropCodes.xlsx", sheet = 1)
-Fert_comp <- read.xls("Data/Other/Fert_comp.xlsx", sheet = 2)
-Fert_comp$P_share <- as.numeric(Fert_comp$P_share)
-Fert_comp$K_share <- as.numeric(Fert_comp$K_share)
+# 3. install required packages
+x <- c("foreign", "stringr", "gdata", "car", "reshape2", "RColorBrewer", "rgdal", "raster", "plyr")
+lapply(x, library, character.only = TRUE)
+library(dplyr)
+
+# 4. source functions
+source("./Analysis/Functions/plus.R") 
+source("./Analysis/Functions/missing.plot.R") 
+source("./Analysis/Functions/multi.merge.R")
 
 # A. Create community data and zone variable
 #    1. read in household questionnaire section A1 for hhid, region, dir
@@ -116,6 +116,12 @@ PlotInd$Famlabdays[is.na(PlotInd$Famlabdays)] <- 0
 PlotInd$Hirlabdays[is.na(PlotInd$Hirlabdays)] <- 0
 
 # E. create a database of information on fertilizer variables.
+#    1. read in plotind dataframe which contains all the data on fertilizer.
+#    2. read in the fertilizer composition data
+#    3. calculate the important fertilizer price stuff and save in a new file.
+Fert_comp <- read.xls("Data/Other/Fert_comp.xlsx", sheet = 2)
+Fert_comp$P_share <- as.numeric(Fert_comp$P_share)
+Fert_comp$K_share <- as.numeric(Fert_comp$K_share)
 PlotData$s3aq44[PlotData$s3aq44 == 9] <- NA
 Fert <- PlotData %>% transmute(hhid, plotnum, region, ea, Zone, Inorgfert = factor(s3aq43, labels = c("YES", "NO")), InorgFertkg = s3aq45, InorgFertsh = s3aq46,
                   InorgFertType = factor(s3aq44, labels = c("DAP", "UREA", "TSP", "CAN", "SA", "generic NPK (TZA)", "MRP"))) %>% arrange(InorgFertType)
@@ -126,17 +132,6 @@ Fert <- mutate(Fert, N = InorgFertkg * (N_share/100), P = InorgFertkg * (P_share
 Fert <- arrange(Fert, InorgFertType, hhid, plotnum)
 Fert$Source <- "Y1"
 #write.csv(Fert, "./Analysis/Cleaned_data/FertY1.csv")
-
-# F. Output variables - combine PlotIO and PlotTree
-Output <- select(PlotIO, hhid, plotnum, zaocode, Outputkg, Source)
-Output <- Output[!is.na(Output$zaocode), ]
-# Select only Plots where maize is grown (but not necessarily only maize) and remove values with Outputkg = 0 or missing
-Output.Maize <- ddply(Output, .(hhid, plotnum), transform, Maize = any(zaocode == "Maize"))
-Output.Maize <- Output.Maize[Output.Maize$Maize, ]
-# Count the number of crops grown on each plot - split by hhid and plotnum
-Count <- melt(Output.Maize[, c(1:3)], id = 1:2)
-Count <- ddply(Count, .(hhid, plotnum), summarize, cropCount = length(unique(value[!is.na(value)])))
-Output.Maize <- merge(Output.Maize, Count, by = c("hhid", "plotnum"))
 
 # G. Price of items data - create price database
 #    1. read in data from community questionnaire section CJ.
@@ -149,7 +144,7 @@ levels(prices$unit) <- c("Kilograms", "Grams", "Litre", "Millilitre", "Pieces", 
 prices$price[prices$price == 0] <- NA
 prices$weight[prices$weight == 0] <- NA
 
-# 2. calculate price per kilogram for each observation
+#    5. calculate price per kilogram for each observation
 prices$pricePkg <- with(prices,  
                         ifelse(unit == "Grams", price/(weight/1000),
                                ifelse (weight == "Kilograms", price/(weight),
@@ -158,6 +153,24 @@ prices$pricePkg <- with(prices,
                                                      ifelse(unit == "Pieces", price/(weight), price/weight))))))
 
 write.csv(prices, "./Analysis/Cleaned_Data/prices_y1.csv")
+
+# F. Output variables - combine PlotIO and PlotTree
+#    1. read in input and output data
+#    2. read in price data
+#    3. read in crop codes data
+#    3. select plots where maize is grown, but not necessarily only maize
+#    4. count the number of crops grown on each plot
+#    5. merge price data with output data
+CropCodes <- read.xls("Data/Tanzania/2010_11/Other/CropCodes.xlsx", sheet = 1)
+Output <- select(PlotIO, hhid, plotnum, zaocode, Outputkg, Source)
+Output <- Output[!is.na(Output$zaocode), ]
+# Select only Plots where maize is grown (but not necessarily only maize) and remove values with Outputkg = 0 or missing
+Output.Maize <- ddply(Output, .(hhid, plotnum), transform, Maize = any(zaocode == "Maize"))
+Output.Maize <- Output.Maize[Output.Maize$Maize, ]
+# Count the number of crops grown on each plot - split by hhid and plotnum
+Count <- melt(Output.Maize[, c(1:3)], id = 1:2)
+Count <- ddply(Count, .(hhid, plotnum), summarize, cropCount = length(unique(value[!is.na(value)])))
+Output.Maize <- merge(Output.Maize, Count, by = c("hhid", "plotnum"))
 
 # H. Merge national and district price data with Output 
 Output.Maize <- merge(Output.Maize, EAs[, c(2:6)], by = c("hhid")) 
@@ -176,14 +189,3 @@ Output.Maize <- ddply(Output.Maize, .(region, hhid, plotnum),
                     MaizeShare = MaizeValue/PlotValue * 100, cropCount = unique(cropCount),
                     Beans = any(zaocode == "Beans"), CashCrop = any(CashCrop == "YES"))
 Output.Maize$Multicropping <- ifelse(Output.Maize$cropCount > 1,"Multicropping", "Singlecropping")
-# I. combine data
-#    1. subset the plot input Output data for maize plotsPlot level input-output data with plot level indicators and output data for Maize plots
-Plot.tot <- PlotIO[PlotIO$zaocode == "Maize", ]
-Plot.tot <- merge(Plot.tot, PlotInd, by = c("hhid", "plotnum"))
-Plot.tot <- merge(Plot.tot, Output.Maize, by = c("region", "hhid", "plotnum"))
-## Combine all data at various levels - Finish Line
-Total.TZA.Y1 <- merge(Plot.tot,HH1, by = c("hhid"), all.x = TRUE)
-Total.TZA.Y1 <- merge(Total.TZA.Y1, ComInd[, -c(3:6, 54)], by = c("hhid", "region"), all.x = TRUE)
-summary(Total.TZA.Y1)                  
-
-save(Total.TZA.Y1, file = "./Analysis/TZA 2008/Total.TZA.Y1.RData")          

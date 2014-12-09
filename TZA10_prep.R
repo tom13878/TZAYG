@@ -89,7 +89,9 @@ names(Com)<-c("y2_hhid","Regions")
 COMSEC_CJ<-read.dta(paste(filepath,"COMSEC_CJ.dta", sep=""),convert.factors = TRUE)
 rm(filepath)
 
-
+# `````````````````````````````````````````````````````````````````````````````
+# A. community data
+# `````````````````````````````````````````````````````````````````````````````
 # PREPARE DATA
 # Create community indicators and link geospatial data
 Com<-merge(Com, y2commlink, by="y2_hhid") # note that not for all EAs community data is available - see overview document
@@ -137,6 +139,9 @@ EAs<-merge(EAs, AEZ16Code[,c(1:2)], by=c("AEZ16Code"))
 length(unique(HH.Geovariables_Y2$land03))
 # Land03 is probably the same as AEZ16Code but misses some values (mainly islands around Zanzibar)
 
+# `````````````````````````````````````````````````````````````````````````````
+# B. Household level data
+# `````````````````````````````````````````````````````````````````````````````
 # Create HH level indicators
 # Number of agricultural assets defined as: (1) small tools: 428, 429, 431, 435, 440, 441, 442, 443, 446, 447, 452; (2) 444, 445, 449 (see p. 40 HH Quest.)
 HHAssets<-HH_SEC_N[complete.cases(HH_SEC_N),]
@@ -179,6 +184,9 @@ HH<-merge(HH, HH.plotnumb, by=c("y2_hhid"), all.x=TRUE)
 #HH<-merge(HH, HH.totalplotsize, by=c("y2_hhid"), all.x=TRUE)
 rm(HH.size,HH.cap, HH.plotnumb)
 
+# `````````````````````````````````````````````````````````````````````````````
+# C. plot level input - output data
+# `````````````````````````````````````````````````````````````````````````````
 # Create plot level input and output variables
 # start with most disaggregated level by plot and crop.
 Plot<-AG_SEC4A
@@ -218,6 +226,9 @@ Plot3$Outputkg<-Plot3$ag6a_08
 Plot3$Tree<-"YES"
 Plot3<-Plot3[,-c(4:16)]
 
+# `````````````````````````````````````````````````````````````````````````````
+# D. plot level indicators data
+# `````````````````````````````````````````````````````````````````````````````
 # Plot level indicators
 require(dplyr)
 # source wikipedia 0.40468564224 ha=1 acre
@@ -274,6 +285,9 @@ Plot2$Pestkg[is.na(Plot2$Pestkg)]<-0
 Plot2$Famlabdays[is.na(Plot2$Famlabdays)]<-0
 Plot2$Hirlabdays[is.na(Plot2$Hirlabdays)]<-0
 
+# `````````````````````````````````````````````````````````````````````````````
+# E. Fertilizer database
+# `````````````````````````````````````````````````````````````````````````````
 # Create new database with all fertilizer information
 # Compute fertilizer content using composition in Sheahan and Barett, p. 78
 Fert_comp<-read.xls("Data/Other/Fert_comp.xlsx", sheet=2)
@@ -313,38 +327,11 @@ Plot2<-merge(Plot2, Fert2, by=c("y2_hhid", "plotnum"))
 
 Plot2<-merge(Plot2, areas_tza_y2_imputed, by=c("y2_hhid", "plotnum"), all.x=TRUE)
 
-# Compute output index following Sheahan
-OutputI<-Plot[c("y2_hhid", 'plotnum', "zaocode", "Outputkg")]
-OutputI$Source<-"CropQ"
-OutputI$ID<-paste(OutputI$y2_hhid, OutputI$plotnum, OutputI$zaocode)
-OutputIb<-Plot3[c("y2_hhid", 'plotnum', "zaocode", "Outputkg")]
-OutputIb$Source<-"FruitQ"
-OutputIb$ID<-paste(OutputIb$y2_hhid, OutputIb$plotnum, OutputIb$zaocode)
-OutputI.tot<-rbind(OutputI, OutputIb)
-#check for duplicates in crop and permanent crop files
-check<-ddply(OutputI.tot,.(y2_hhid, plotnum, zaocode, ID), summarize, count=length(zaocode))
-check<-check[check$count>1 & !is.na(check$zaocode),]
-check2<-subset(OutputI.tot, ID %in% check$ID & zaocode %in% c("Banana", "Passion fruit"))
-OutputI<-subset(OutputI, !(ID %in% check2$ID)) # remove duplicates
-OutputI.tot<-rbind(OutputI, OutputIb)
-OutputI.tot<-OutputI.tot[!is.na(OutputI.tot$zaocode),]
-OutputI.tot<-OutputI.tot[!is.na(OutputI.tot$Outputkg),]
-rm(check, check2, OutputI, OutputIb)
-# Select only plots where maize is grown and remove values with Outputkg=0 or missing
-OutputI.tot<-ddply(OutputI.tot,.(y2_hhid, plotnum),  transform, Maize=any(zaocode %in% c("Maize")))
-OutputI.tot<-OutputI.tot[OutputI.tot$Maize,]
-OutputI.tot<-subset(OutputI.tot, Outputkg!=0 & !is.na(Outputkg))
-# Check how many crops per plot are grown
-CropCount<-OutputI.tot
-CropCount$Count<-1
-CropCount$zaocode<-factor(CropCount$zaocode)
-CropCount<-dcast(CropCount[,c(1:3,8)], ...~zaocode, value.var="Count")
-CropCount<-data.frame(freq=colSums(!is.na(CropCount[,c(3:61)])))
-# Add number of crops on plot
-OutputI.tot<-ddply(OutputI.tot,.(y2_hhid, plotnum),  transform, NumbofCrops=sum(!is.na(Outputkg)))
-MoreThan7Crops<-OutputI.tot[OutputI.tot$NumbofCrops>7,]
-table(OutputI.tot[!duplicated(OutputI.tot[,c(1,2)]),]$NumbofCrops)
 
+
+# `````````````````````````````````````````````````````````````````````````````
+# F. price data + winsoring on prices afterwards for section G.
+# `````````````````````````````````````````````````````````````````````````````
 # Create price database
 # Standardise prices
 Prices<-COMSEC_CJ
@@ -382,6 +369,40 @@ Prices.National<-melt(Prices.National, id=1:6)
 Prices.National<-Prices.National[complete.cases(Prices.National),]
 Prices.National<-ddply(Prices.National,.(itemid, itemname), summarize, Price=mean(value,na.rm=TRUE), NumberObs=length(value))
 
+# `````````````````````````````````````````````````````````````````````````````
+# H. output data
+# `````````````````````````````````````````````````````````````````````````````
+# Compute output index following Sheahan
+OutputI<-Plot[c("y2_hhid", 'plotnum', "zaocode", "Outputkg")]
+OutputI$Source<-"CropQ"
+OutputI$ID<-paste(OutputI$y2_hhid, OutputI$plotnum, OutputI$zaocode)
+OutputIb<-Plot3[c("y2_hhid", 'plotnum', "zaocode", "Outputkg")]
+OutputIb$Source<-"FruitQ"
+OutputIb$ID<-paste(OutputIb$y2_hhid, OutputIb$plotnum, OutputIb$zaocode)
+OutputI.tot<-rbind(OutputI, OutputIb)
+#check for duplicates in crop and permanent crop files
+check<-ddply(OutputI.tot,.(y2_hhid, plotnum, zaocode, ID), summarize, count=length(zaocode))
+check<-check[check$count>1 & !is.na(check$zaocode),]
+check2<-subset(OutputI.tot, ID %in% check$ID & zaocode %in% c("Banana", "Passion fruit"))
+OutputI<-subset(OutputI, !(ID %in% check2$ID)) # remove duplicates
+OutputI.tot<-rbind(OutputI, OutputIb)
+OutputI.tot<-OutputI.tot[!is.na(OutputI.tot$zaocode),]
+OutputI.tot<-OutputI.tot[!is.na(OutputI.tot$Outputkg),]
+rm(check, check2, OutputI, OutputIb)
+# Select only plots where maize is grown and remove values with Outputkg=0 or missing
+OutputI.tot<-ddply(OutputI.tot,.(y2_hhid, plotnum),  transform, Maize=any(zaocode %in% c("Maize")))
+OutputI.tot<-OutputI.tot[OutputI.tot$Maize,]
+OutputI.tot<-subset(OutputI.tot, Outputkg!=0 & !is.na(Outputkg))
+# Check how many crops per plot are grown
+CropCount<-OutputI.tot
+CropCount$Count<-1
+CropCount$zaocode<-factor(CropCount$zaocode)
+CropCount<-dcast(CropCount[,c(1:3,8)], ...~zaocode, value.var="Count")
+CropCount<-data.frame(freq=colSums(!is.na(CropCount[,c(3:61)])))
+# Add number of crops on plot
+OutputI.tot<-ddply(OutputI.tot,.(y2_hhid, plotnum),  transform, NumbofCrops=sum(!is.na(Outputkg)))
+MoreThan7Crops<-OutputI.tot[OutputI.tot$NumbofCrops>7,]
+table(OutputI.tot[!duplicated(OutputI.tot[,c(1,2)]),]$NumbofCrops)
 # Merge national and district price data with Output 
 OutputI.tot<-merge(OutputI.tot, Com[,c(1:6)], by=c("y2_hhid")) # Note: about 1000 observations do not have geocodes
 OutputI.tot<-merge(OutputI.tot, CropCodes[,c(1,3,4)], by.x=c("zaocode"), by.y=c("CropName"))
@@ -405,24 +426,4 @@ OutputI.calc$Regions<-NULL # Otherwise there will be a duplication later.
 #check<-subset(OutputI.calc, MaizeShare>=25 & CashCrop)
 #check<-subset(OutputI.calc, MaizeShare>=25 & NumbofCrops>7)
 
-# Combine Plot level data, only select Maize plots
-Plot.tot<-subset(Plot, zaocode=="Maize")
-Plot.tot<-merge(Plot.tot, Plot2, by=c("y2_hhid", "plotnum"), all.x=TRUE)
-Plot.tot<-merge(Plot.tot, OutputI.calc, by=c("y2_hhid", "plotnum"), all.x=TRUE)
 
-# Compare main crop, Maize share and number of crops
-check<-Plot.tot[c("y2_hhid","OutputkgOld", "OutputkgNew", "plotnum","Maincrop", "NumbofCrops", "MaizeShare", "Multicropping", "InterCrop")]
-check<-check[which(check$Maincrop!="Maize" & check$MaizeShare>25),]
-check<-check[complete.cases(check),]
-#Plot.tot<-merge(Plot.tot, Plot3, by=c("y2_hhid", "plotnum"), all.x=TRUE)
-#Plot.tot$Tree[is.na(Plot.tot$Tree)]<-"NO" # set tree to zero 
-#Plot.tot$Tree<-factor(Plot.tot$Tree)
-
-# Combine all data at various levels
-Total.TZA<-merge(Plot.tot,HH, by=c("y2_hhid"), all.x=TRUE)
-Total.TZA<-merge(Total.TZA, Com, by=c("y2_hhid"), all.x=TRUE)
-Total.TZA<-merge(Total.TZA, EAs[,c(1,7,10,11)], by=c("ea_id"), all.x=TRUE)
-
-# Save file
-save(Total.TZA,file="Data/Processed/Total.TZA.RData")
-summary(Total.TZA)

@@ -51,3 +51,74 @@ Plot2<-merge(Plot2, Fert2, by=c("y2_hhid", "plotnum"))
 #InorgFertkg<-cbind(AG_SEC3A[,c(1,2)], InorgFertkg)
 
 Plot2<-merge(Plot2, areas_tza_y2_imputed, by=c("y2_hhid", "plotnum"), all.x=TRUE)
+
+# from the data prep 2008 original output section
+## calling summary on OutputI.calc reveals that only 1757 plots have Maize on them 
+summary(factor(output.maize$zaocode))
+output.maize <- ddply(output.maize, .(region, hhid, plotnum), transform,
+                      maize.false = "Maize" %in% zaocode)
+output.maize <- output.maize[output.maize$maize.false,]
+
+#original output code from year 2 
+OutputI<-Plot[c("y2_hhid", 'plotnum', "zaocode", "Outputkg")]
+OutputI$Source<-"CropQ"
+OutputI$ID<-paste(OutputI$y2_hhid, OutputI$plotnum, OutputI$zaocode)
+OutputIb<-Plot3[c("y2_hhid", 'plotnum', "zaocode", "Outputkg")]
+OutputIb$Source<-"FruitQ"
+OutputIb$ID<-paste(OutputIb$y2_hhid, OutputIb$plotnum, OutputIb$zaocode)
+OutputI.tot<-rbind(OutputI, OutputIb)
+#check for duplicates in crop and permanent crop files
+check<-ddply(OutputI.tot,.(y2_hhid, plotnum, zaocode, ID), summarize, count=length(zaocode))
+check<-check[check$count>1 & !is.na(check$zaocode),]
+check2<-subset(OutputI.tot, ID %in% check$ID & zaocode %in% c("Banana", "Passion fruit"))
+OutputI<-subset(OutputI, !(ID %in% check2$ID)) # remove duplicates
+OutputI.tot<-rbind(OutputI, OutputIb)
+OutputI.tot<-OutputI.tot[!is.na(OutputI.tot$zaocode),]
+OutputI.tot<-OutputI.tot[!is.na(OutputI.tot$Outputkg),]
+rm(check, check2, OutputI, OutputIb)
+# Select only plots where maize is grown and remove values with Outputkg=0 or missing
+OutputI.tot<-ddply(OutputI.tot,.(y2_hhid, plotnum),  transform, Maize=any(zaocode %in% c("Maize")))
+OutputI.tot<-OutputI.tot[OutputI.tot$Maize,]
+OutputI.tot<-subset(OutputI.tot, Outputkg!=0 & !is.na(Outputkg))
+# Check how many crops per plot are grown
+CropCount<-OutputI.tot
+CropCount$Count<-1
+CropCount$zaocode<-factor(CropCount$zaocode)
+CropCount<-dcast(CropCount[,c(1:3,8)], ...~zaocode, value.var="Count")
+CropCount<-data.frame(freq=colSums(!is.na(CropCount[,c(3:61)])))
+# Add number of crops on plot
+OutputI.tot<-ddply(OutputI.tot,.(y2_hhid, plotnum),  transform, NumbofCrops=sum(!is.na(Outputkg)))
+MoreThan7Crops<-OutputI.tot[OutputI.tot$NumbofCrops>7,]
+table(OutputI.tot[!duplicated(OutputI.tot[,c(1,2)]),]$NumbofCrops)
+# Merge national and district price data with Output 
+OutputI.tot<-merge(OutputI.tot, Com[,c(1:6)], by=c("y2_hhid")) # Note: about 1000 observations do not have geocodes
+OutputI.tot<-merge(OutputI.tot, CropCodes[,c(1,3,4)], by.x=c("zaocode"), by.y=c("CropName"))
+OutputI.tot.District<-merge(OutputI.tot, Prices.District[,c(1,3,4)], by=c("Regions", "itemname"))
+OutputI.tot.National<-merge(OutputI.tot, Prices.District[,c(1,3,4)], by=c("Regions", "itemname"), all.x=TRUE)
+OutputI.tot.National<-OutputI.tot.National[!complete.cases(OutputI.tot.National),]
+OutputI.tot.National$Price<-NULL
+OutputI.tot.National<-merge(OutputI.tot.National, Prices.National[,c(2,3)], by=c("itemname"), all.x=TRUE)
+OutputI.tot<-rbind(OutputI.tot.National, OutputI.tot.District)
+
+# Calculate Yield output corrected for multicropping
+OutputI.calc<-OutputI.tot
+OutputI.calc<-merge(OutputI.calc, CropCodes[,c(1,6)], by.x="zaocode", by.y="CropName")
+OutputI.calc$value<-OutputI.calc$Price*OutputI.calc$Outputkg
+OutputI.calc<-ddply(OutputI.calc,.(Regions,y2_hhid, plotnum), 
+                    summarize, PlotValue=sum(value), MaizePrice=Price[zaocode=="Maize"], MaizeValue=MaizePrice*Outputkg[zaocode=="Maize"],
+                    OutputkgOld=Outputkg[zaocode=="Maize"], OutputkgNew=PlotValue/MaizePrice, 
+                    MaizeShare=MaizeValue/PlotValue*100, NumbofCrops=unique(NumbofCrops), Beans=any(zaocode=="Beans"), CashCrop=any(CashCrop=="YES"))
+OutputI.calc$Multicropping<-ifelse(OutputI.calc$NumbofCrops>1,"Multicropping", "Singlecropping")
+OutputI.calc$Regions<-NULL # Otherwise there will be a duplication later.
+#check<-subset(OutputI.calc, MaizeShare>=25 & CashCrop)
+#check<-subset(OutputI.calc, MaizeShare>=25 & NumbofCrops>7)
+
+# imputed plot areas from year 2 code
+# Load imputed plot size data from WB
+filepath<-paste(wdpath, "\\Data\\Plot_size\\", sep="")
+areas_tza_y2_imputed<-read.dta(paste(filepath,"areas_tza_y2_imputed.dta", sep=""),convert.factors = TRUE)
+names(areas_tza_y2_imputed)[1]<-"y2_hhid"
+
+
+
+#EA.offsets.TZA<-read.dta(paste(filepath,"EA.offsets.dta", sep=""),convert.factors = TRUE)

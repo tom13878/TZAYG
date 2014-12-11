@@ -1,3 +1,37 @@
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+# TZA 2010 merge - merge all year 2 databases into one database.
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+# 1. set working directory
+# setwd("D:\\Dijk158\\Dropbox\\Michiel research\\Micro_IPOP")
+setwd("c:/Users/morle001/Dropbox/Micro_IPOP")
+
+# 2. set some options
+options(scipen = 999) # surpress scientific notation
+options("stringsAsFactors" = FALSE) 
+options(digits = 4)
+
+# 3. read in data
+# geo variables
+# hh variables
+# plot indicator variables
+# fertilizer variables
+# output variables
+
+# 4. merge data into a single file
+
+# 5. save as a final database
+
+
+
+
+
+
+
+
+
+
 # Combine Plot level data, only select Maize plots
 Plot.tot<-subset(Plot, zaocode=="Maize")
 Plot.tot<-merge(Plot.tot, Plot2, by=c("y2_hhid", "plotnum"), all.x=TRUE)

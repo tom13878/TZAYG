@@ -1,6 +1,7 @@
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-# TZA 2008 data preperation - data tidying and processing
+# TZA 2008 data preperation - data tidying and processing of world bank data into seperate sections
+# which will ultimately be combined to create a larger database for year 1 data
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # 1. set working directory
@@ -23,11 +24,11 @@ source("./Analysis/Functions/missing.plot.R")
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-# A. Create community data and zone variable
-#    1. read in household questionnaire section A1 for hhid, region, dir
-#    2. read in HH.Geovariables file 
-#    3. select variables from household questionnaire and merge with geo variables
-#    4. Group regions into zones (from Demographic and Health Survey (DHS))
+# A. This sections purpose is to create a database of geo variables which will later be merged into
+#    the overall database for year 1. This includes creating a zone variable which will be important
+#    for analysis. In addition to auxillary databases are created. The first holds the hhid of each
+#    household and their corresponding region and zones, and the second contains each region and 
+#    it's correponding zone.
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 HQSECA1 <- read.dta("./Data/Tanzania/2008_09/Stata/TZNPS1HHDTA_E/SEC_A_T.dta",
@@ -55,14 +56,9 @@ reg.zone <- unique(select(geo.vars, hhid, region, zone)) %>% arrange(zone)
 # write.csv(reg.zone, "./Analysis/Cleaned_data/reg_zone_y1.csv", row.names = FALSE)
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-# B. create data on the household characteristics
-#    1. read  household questionnaire sections B, C, D, E1, F, G1, and U (all one file)
-#    2. read in data from agricultural questionnaiore section 11 
-#    3. read in data from agricultural questionnaire section 3A
-#    4. select variables on the head of the household, their age and sex and overall size of the HH
-#    5. calcualte capital stock, number of plots and plotmissing variables
-#    6. merge household data together.
-#    7. may still need to add household plot size for weighting later
+# B. This sections purpose is to create variables refering to the individual household. This 
+#    information will later be combined into a larger database for year 1 and household variables
+#    will be used in analyis
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 HQSECBU <- read.dta("./Data/Tanzania/2008_09/Stata/TZNPS1HHDTA_E/SEC_B_C_D_E1_F_G1_U.dta",
@@ -80,15 +76,14 @@ hh.cap$cap.rent[is.na(hh.cap$cap.rent)] <- 0
 hh.plots <- ddply(AQSEC3A, .(hhid), summarize, plots = sum(!is.na(plotnum)),
                   plot.missing = factor(missing.plot(s3aq5code)))
 hh.total <- left_join(hh.char, hh.cap) %>% left_join(hh.plots)
-# write.csv(hh.total, "./Analysis/Cleaned_data/hh_total_y1.csv", row.names = FALSE)
+write.csv(hh.total, "./Analysis/Cleaned_data/hh_total_y1.csv", row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-# C. input and output variables at the plot level
-#    1. read in data from agricultural questionnaire section 4A
-#    2. read in data from agricultural questionnaire section 6A
-#    3. select desired variables from section 4A and alter the values and levels of some variables
-#    4. select desired variables from section 6A
+# C. This sections purpose is to create variables on the inputs and outputs at the plot level, for
+#    example seeds as an input and crops as output. This is carried out for crops and permanent
+#    crops. This section of the database is later combined with price data to construct an output
+#    database
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 AQSEC4A <- read.dta("./Data/Tanzania/2008_09/Stata/TZNPS1AGDTA_E/SEC_4A.dta",
@@ -98,9 +93,9 @@ AQSEC6A <- read.dta("./Data/Tanzania/2008_09/Stata/TZNPS1AGDTA_E/SEC_6A.dta",
 plot.IO <- transmute(AQSEC4A, hhid, plotnum, zaocode, total.plot = s4aq3,
                         inter.crop = factor(s4aq6, labels = c("YES", "NO")),
                         output.kg = s4aq15, output.ton = s4aq15/1000,
-                        output.sh = s4aq16, seeds.sh = s4aq20, seed.type = s4aq22,
+                        output.price = s4aq16, seed.price = s4aq20, seed.type = s4aq22,
                         harv.comp = s4aq12)
-plot.IO$seeds.sh[plot.IO$s4aq19 == "NO"] <- 0 
+plot.IO$seed.price[plot.IO$s4aq19 == "NO"] <- 0 
 levels(plot.IO$seed.type) <- c(levels(plot.IO$seed.type), "None purchased")
 plot.IO$seed.type[plot.IO$ag4a_19 == "NO"] <- "None purchased"
 plot.tree <- select(AQSEC6A, hhid, plotnum, zaocode, output.kg = s6aq8)
@@ -109,9 +104,8 @@ plot.tree <- select(AQSEC6A, hhid, plotnum, zaocode, output.kg = s6aq8)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-# D. Plot level indicators
-#    1. read in agricultural questionnaire sections 2A and 3A
-#    2. read in plot geovariables file and EAs file stored 
+# D. This sections purpose is to create plot level variables describing the characteristics of each
+#    plot which will later be combined into a complete database.
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 AQSEC2A <- read.dta("./Data/Tanzania/2008_09/Stata/TZNPS1AGDTA_E/SEC_2A.dta",
@@ -172,10 +166,9 @@ plot.vars$hir.lab.days[is.na(plot.vars$hir.lab.days)] <- 0
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # `````````````````````````````````````````````````````````````````````````````````````````````````` 
-# E. create a database of information on inorganic fertilizer variables.
-#    1. read in agricultural questionnaire section 3A containing data on inorganic fertilizer.
-#    2. read in the fertilizer composition data
-#    3. calculate the important fertilizer price stuff and save in a new file.
+# E. This section creates a seperate database of fertilizer variables which will be analysed and 
+#    then winsored in the following section. The fertilizer variables will be combined with the
+#    larger database and will constitute a major aspect of the analysis
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 AQSEC3A <- read.dta("./Data/Tanzania/2008_09/Stata/TZNPS1AGDTA_E/SEC_3A.dta",
@@ -186,7 +179,7 @@ AQSEC3A$s3aq44[AQSEC3A$s3aq44 == 9] <- NA
 fert.vars <- left_join(AQSEC3A, region_and_zone) %>%
   transmute(hhid, plotnum, region, zone, 
             fert = factor(s3aq43, labels = c("YES", "NO")),
-            fert.kg = s3aq45, fert.sh = s3aq46,
+            fert.kg = s3aq45, fert.price = s3aq46,
             fert.type = factor(s3aq44, labels = c("DAP", "UREA", "TSP", "CAN", "SA",
                                                   "generic NPK (TZA)", "MRP"))) %>%
   arrange(fert.type)
@@ -198,7 +191,7 @@ fert.comp$K_share <- as.numeric(fert.comp$K_share)
 fert.vars <- merge(fert.vars, select(fert.comp, fert.type, N_share, P_share, K_share), all.x = TRUE) 
 fert.vars <- mutate(fert.vars, N = fert.kg * (N_share/100),
                     P = fert.kg * (P_share/100), K = fert.kg * (K_share/100),
-                    unit.price.kg = fert.sh/fert.kg, unit.price.50kg = unit.price.kg*50,
+                    unit.price.kg = fert.price/fert.kg, unit.price.50kg = unit.price.kg*50,
                     nit.price.kg = (100/N_share)*unit.price.kg) %>%
   arrange(fert.type, hhid, plotnum)
 
@@ -208,13 +201,8 @@ fert.vars$year <- "2008"
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-# F. Price of items data - create price database
-#    1. read in data from community questionnaire section CJ.
-#    2. desired variables from the raw data file are selected and renamed. Itemname is changed to
-#       itemid to match up with later data. 
-#    3. observations for which the price is equal to zero are dropped.
-#    4. observations for which the weight is zero are set to NA
-#    5. prices are changed to units of kilograms
+# F. Price variables are cleaned and processed. These are then exported and analysed in a seperate
+#    code file.
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 CQSECJ2 <- read.dta("./Data/Tanzania/2008_09/Stata/TZNPS1CMDTA_E/SEC_J2.dta",
@@ -258,13 +246,7 @@ prices.region$region.price[bad] <- prices.region$national.price[bad]
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-# H. Output variables - combine PlotIO and PlotTree
-#    1. read in input and output data
-#    2. read in price data
-#    3. read in crop codes data
-#    3. select plots where maize is grown, but not necessarily only maize
-#    4. count the number of crops grown on each plot
-#    5. join price data with output data
+# H. Output variables
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # read in data

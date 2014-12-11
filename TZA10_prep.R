@@ -54,7 +54,7 @@ reg.zone <- unique(select(geo.vars, y2_hhid, region, zone)) %>% arrange(zone)
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # B. Household level data - Create HH level indicators
 #    1. read in hh questionnaires sec B, C, E1 and agricultural questionnaire
-#    sec 11 and sec 3A
+#       sec 11 and sec 3A
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 HQSECB <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_B.dta",

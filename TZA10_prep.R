@@ -21,22 +21,6 @@ library(dplyr)
 source("./Analysis/Functions/plus.R") 
 source("./Analysis/Functions/missing.plot.R") 
 
-AG_SEC2A<-read.dta(paste(filepath,"AG_SEC2A.dta", sep=""),
-                   convert.factors = TRUE)
-AG_SEC2B<-read.dta(paste(filepath,"AG_SEC2B.dta", sep=""),
-                   convert.factors = TRUE)
-AG_SEC3B<-read.dta(paste(filepath,"AG_SEC3B.dta", sep=""),
-                   convert.factors = FALSE) # Error with stata labels, probably one missing see?
-AG_SEC4B<-read.dta(paste(filepath,"AG_SEC4B.dta", sep=""),convert.factors = TRUE) 
-AG_SEC6A<-read.dta(paste(filepath,"AG_SEC6A.dta", sep=""),convert.factors = FALSE) # Error with stata labels, probably one missing see?
-AG_SEC6B<-read.dta(paste(filepath,"AG_SEC6B.dta", sep=""),convert.factors = FALSE) # Error with stata labels, probably one missing see?
-# Load imputed plot size data from WB
-filepath<-paste(wdpath, "\\Data\\Plot_size\\", sep="")
-areas_tza_y2_imputed<-read.dta(paste(filepath,"areas_tza_y2_imputed.dta", sep=""),convert.factors = TRUE)
-names(areas_tza_y2_imputed)[1]<-"y2_hhid"
-
-#EA.offsets.TZA<-read.dta(paste(filepath,"EA.offsets.dta", sep=""),convert.factors = TRUE)
-
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # A. community data
@@ -62,8 +46,9 @@ geo.vars$zone[geo.vars$region %in% c("Kaskazini Unguja", "Kusini Unguja", "Mjini
 geo.vars$zone <- factor(geo.vars$zone)
 hhid.reg.zone <- select(geo.vars, y2_hhid, region, zone) %>% arrange(zone)
 reg.zone <- unique(select(geo.vars, y2_hhid, region, zone)) %>% arrange(zone)
-# write.csv(geo.vars, <destfile>)
-write.csv(hhid.reg.zone, "./Analysis/Cleaned_data/hhid_reg_zone_y2.csv", row.names = FALSE)
+# write.csv(geo.vars, "./Analysis/Cleaned_data/geo_vars_y2.csv", row.names = FALSE)
+# write.csv(hhid.reg.zone, "./Analysis/Cleaned_data/hhid_reg_zone_y2.csv", row.names = FALSE)
+# write.csv(reg.zone, "./Analysis/Cleaned_data/reg_zone_y2.csv", row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -154,6 +139,8 @@ plot.IO$seed.type[plot.IO$ag4a_19 == "NO"] <- "None purchased"
 plot.IO <- select(plot.IO, -(ag4a_09:ag4a_19))
 
 plot.tree <- select(AQSEC6A, y2_hhid, plotnum, zaocode, output.kg = ag6a_08)
+# write.csv(plot.IO, "./Analysis/Cleaned_data/plot_IO_y2.csv", row.names = FALSE)
+# write.csv(plot.tree, "./Analysis/Cleaned_data/plot_tree_y2.csv", row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -171,54 +158,44 @@ plot.vars <- left_join(AQSEC2A, AQSEC3A) %>% left_join(plot.geo)
 
 plot.vars$ag3a_14[plot.vars$ag3a_14 == 3] <- NA # correction for one value that is 3 (impossible)
 
-plot.vars <- transmute(plot.vars,
-                 y2_hhid,
-                 plotnum,
-                 Areafha=ag2a_04*0.40468564224, 
-                 Areagpsha=ag2a_09*0.40468564224, 
-                 Plotdisthkm=as.numeric(dist01), 
-                 Maincrop=factor(zaocode, levels = CropCodes$zaocode, labels = CropCodes$CropName), 
-                 Soil=factor(ag3a_09, labels=c("Sandy", "Loam", "Clay", " Other")), 
-                 Soilq=factor(ag3a_10, labels=c("Good", "Average", "Bad")),
-                 Eroscont=factor(ag3a_14, labels=c("YES", "NO")), 
-                 Erosion=factor(ag3a_12, labels=c("YES", "NO")), 
-                 Slope=factor(ag3a_16, labels=c("Flat bottom", "Flat top", "Slightly sloped", "Very steep")), 
-                 Irrigation=factor(ag3a_17, labels=c("YES", "NO")), 
-                 Ownership=factor(ag3a_24, labels=c("Owned", "Used free of charge", "Rented in", "Shared-rent", "shared-own")),
-                 Landtitle=factor(ag3a_27, labels=c("YES", "NO")),
-                 Cultivate=factor(ag3a_38,  labels=c("YES", "NO")),
-                 Orgfert=factor(ag3a_39,labels=c("YES", "NO")),
-                 Orgfertkg=ag3a_40,
-                 Orgfertsh=ag3a_43, # note that this is only a subset of total organic inputs!
-                 Inorgfert=factor(ag3a_45, labels=c("YES", "NO")), 
-                 Pest=factor(ag3a_58, labels=c("YES", "NO")),
-                 Pesttype=factor(ag3a_59, labels=c("Pesticide", "Herbicide", "Fungicide", "Other")),
-                 Pestsh=ag3a_61, 
-                 Pestkg=ifelse(ag3a_60_2=="MILLILITRE", ag3a_60_1/1000,
-                               ifelse(ag3a_60_2=="LITRE",ag3a_60_1*1,
-                                      ag3a_60_1)), # Pesticide is liters and kg. It is assumed that 1l=1k, need to be improved!!!
-                 Famlabdays=apply(cbind(ag3a_70_1,ag3a_70_2,ag3a_70_3,ag3a_70_4,ag3a_70_5,ag3a_70_6,
-                                        ag3a_70_13,ag3a_70_14,ag3a_70_15,ag3a_70_16,ag3a_70_17,ag3a_70_18,
-                                        ag3a_70_37,ag3a_70_37,ag3a_70_39,ag3a_70_40,ag3a_70_41,ag3a_70_42,
-                                        ag3a_70_25,ag3a_70_26,ag3a_70_27,ag3a_70_28,ag3a_70_29,ag3a_70_30),
-                                  1,plus),
-                 Hirlabdays=apply(cbind(ag3a_72_1, ag3a_72_2, ag3a_72_21,
-                                        ag3a_72_4, ag3a_72_5, ag3a_72_51,
-                                        ag3a_72_61, ag3a_72_62, ag3a_72_63,
-                                        ag3a_72_7, ag3a_72_8, ag3a_72_81),
-                                  1,plus))
+bad <- grep("ag3a_70_id", names(plot.vars))
+fam.lab.days <- apply(select(plot.vars[, -bad], ag3a_70_1:ag3a_70_30), 1, plus)
+hir.lab.days <- apply(select(plot.vars, ag3a_72_1:ag3a_72_9)[, c(1:3, 5:7, 9:11, 13:15)], 1, plus)
+plot.vars <- cbind(plot.vars, fam.lab.days) %>% cbind(hir.lab.days)
 
-TotalInputsSh<-rowSums(cbind(Plot2$Orgfertsh,Plot2$Inorgfertsh,Plot2$Pestsh), na.rm=TRUE) 
-Plot2<-cbind(Plot2,TotalInputsSh)
+plot.vars <- transmute(plot.vars, y2_hhid, plotnum, hir.lab.days, fam.lab.days
+                 area.est = ag2a_04*0.40468564224, area.gps = ag2a_09*0.40468564224, 
+                 plot.dist = as.numeric(dist01), 
+                 main.crop = factor(zaocode, levels=CropCodes$zaocode, labels = CropCodes$CropName), 
+                 soil = factor(ag3a_09, labels=c("Sandy", "Loam", "Clay", " Other")), 
+                 soilq = factor(ag3a_10, labels=c("Good", "Average", "Bad")),
+                 eroscont = factor(ag3a_14, labels = c("YES", "NO")), 
+                 erosion = factor(ag3a_12, labels = c("YES", "NO")), 
+                 slope = factor(ag3a_16, labels = c("Flat bottom", "Flat top",
+                                                    "Slightly sloped", "Very steep")), 
+                 irrigation = factor(ag3a_17, labels = c("YES", "NO")), 
+                 ownership = factor(ag3a_24, labels = c("Owned", "Used free of charge", "Rented in",
+                                                      "Shared-rent", "shared-own")),
+                 land.title = factor(ag3a_27, labels = c("YES", "NO")),
+                 cultivate = factor(ag3a_38,  labels = c("YES", "NO")),
+                 org.fert = factor(ag3a_39,labels = c("YES", "NO")), org.fert.kg = ag3a_40,
+                 org.fert.price = ag3a_43, pest = factor(ag3a_58, labels=c("YES", "NO")),
+                 pest.type = factor(ag3a_59, labels = c("Pesticide", "Herbicide",
+                                                        "Fungicide", "Other")),
+                 pest.kg = , pest.price = ag3a_61) 
+                 
+plot.vars$pest.kg = with(plot.vars,
+                         ifelse(ag3a_60_2=="MILLILITRE", ag3a_60_1/1000,
+                                ifelse(ag3a_60_2=="LITRE",ag3a_60_1*1, ag3a_60_1)))
 
-# Set NA to zero
-Plot2$TotalInputsSh[is.na(Plot2$TotalInputsSh)]<-0
-Plot2$Orgfertkg[is.na(Plot2$Orgfertkg)]<-0 
-Plot2$Orgfertsh[is.na(Plot2$Orgfertsh)]<-0 
-Plot2$Pestsh[is.na(Plot2$Pestsh)]<-0
-Plot2$Pestkg[is.na(Plot2$Pestkg)]<-0
-Plot2$Famlabdays[is.na(Plot2$Famlabdays)]<-0
-Plot2$Hirlabdays[is.na(Plot2$Hirlabdays)]<-0
+plot.vars$org.fert.kg[is.na(plot.vars$org.fert.kg)] <- 0 
+plot.vars$org.fert.price[is.na(plot.vars$org.fert.price)] <- 0 
+plot.vars$pest.price[is.na(plot.vars$pest.price)] <- 0
+plot.vars$pest.kg[is.na(plot.vars$pest.kg)] <- 0
+plot.vars$fam.lab.days[is.na(plot.vars$fam.lab.days)] <- 0
+plot.vars$hir.lab.days[is.na(plot.vars$hir.lab.days)] <- 0
+
+# write.csv(plot.vars, "./Analysis/Cleaned_data/plot_vars_y2.csv , row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -234,29 +211,35 @@ hhid.region.zone <- read.csv("./Analysis/Cleaned_data/hhid_reg_zone_y2.csv",
                              colClasses = c("character", "factor", "factor"))
 
 fert.main <- AQSEC3A %>% 
-  transmute(y2_hhid, plotnum, fert.type = factor(ag3a_46,labels=c("DAP", "UREA", "TSP", "CAN", "SA", "generic NPK (TZA)", "MRP")),
-            fert.kg = ag3a_47, fert.sh = ag3a_49, voucher = factor(ag3a_48, labels=c("YES", "NO")), main.fert = "MAIN") %>%
+  transmute(y2_hhid, plotnum, fert.type = factor(ag3a_46,labels=c("DAP", "UREA", "TSP", "CAN", "SA",
+                                                                  "generic NPK (TZA)", "MRP")),
+            fert.kg = ag3a_47, fert.price = ag3a_49,
+            voucher = factor(ag3a_48, labels=c("YES", "NO")),
+            main.fert = factor(ifelse(is.na(fert.type), NA, "MAIN"))) %>%
   arrange(fert.type)
 
 fert.second <- AQSEC3A %>% 
-  transmute(y2_hhid, plotnum, fert.type = factor(ag3a_53,labels=c("DAP", "UREA", "TSP", "CAN", "SA", "generic NPK (TZA)", "MRP")),
-            fert.kg=ag3a_54, fert.sh = ag3a_56, voucher = factor(ag3a_55, labels=c("YES", "NO")), main.fert = "SECOND") %>%
+  transmute(y2_hhid, plotnum, fert.type = factor(ag3a_53,labels=c("DAP", "UREA", "TSP", "CAN", "SA",
+                                                                  "generic NPK (TZA)", "MRP")),
+            fert.kg=ag3a_54, fert.price = ag3a_56, voucher = factor(ag3a_55, labels=c("YES", "NO")),
+            main.fert = factor(ifelse(is.na(fert.type), NA, "SECOND"))) %>%
   arrange(fert.type)
 
 fert.vars <- rbind(fert.main, fert.second) %>% left_join(hhid.region.zone)
 
 fert.comp <- read.xls("Data/Other/Fert_comp.xlsx", sheet = 2) %>% rename(fert.type = Fert_type2)
-fert.comp$P_share <- as.numeric(fert_comp$P_share)
-fert.comp$K_share <- as.numeric(fert_comp$K_share)
-fert.comp <- select(fert.comp, fert.type, N_share, P_share, K_share)
-fert.vars <- left_join(fert.vars, fert_comp ) 
+fert.comp$P_share <- as.numeric(fert.comp$P_share)
+fert.comp$K_share <- as.numeric(fert.comp$K_share)
+# fert.comp <- select(fert.comp, fert.type, N_share, P_share, K_share)
+fert.vars <- merge(fert.vars, select(fert.comp, fert.type, N_share, P_share, K_share), all.x = TRUE) 
 fert.vars <- mutate(fert.vars, N = fert.kg * (N_share/100),
                     P = fert.kg * (P_share/100), K = fert.kg * (K_share/100),
-                    unit.pricekg = fert.sh/fert.kg, unit.price50kg = unit.pricekg*50,
-                    Npricekg = (100/N_share)*unit.pricekg) %>% arrange(fert.type, y2_hhid, plotnum)
+                    unit.price.kg = fert.price/fert.kg, unit.price.50kg = unit.price.kg*50,
+                    nit.price.kg = (100/N_share)*unit.price.kg) %>%
+  arrange(fert.type, y2_hhid, plotnum)
 
-fert$year <- "2010"
-write.csv(Fert, "Analysis\\Cleaned_data\\FertY2.csv", row.names = FALSE)
+fert.vars$year <- "2010"
+# write.csv(fert.vars, "./Analysis/Cleaned_data/fert_vars_y2.csv", row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -323,7 +306,7 @@ prices.region$region.price.tot[prices.region$num.obs.tot < 5] <- NA
 prices.region <- left_join(prices.region, prices.national)
 bad <- is.na(prices.region$region.price.tot)
 prices.region$region.price.tot[bad] <- prices.region$national.price.tot[bad]
-write.csv(prices.region,"./Analysis/Cleaned_Data/prices_winsor_y2.csv",
+# write.csv(prices.region,"./Analysis/Cleaned_Data/prices_winsor_y2.csv",
           row.names = FALSE )
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -332,56 +315,40 @@ write.csv(prices.region,"./Analysis/Cleaned_Data/prices_winsor_y2.csv",
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # Compute output index following Sheahan
-OutputI<-Plot[c("y2_hhid", 'plotnum', "zaocode", "Outputkg")]
-OutputI$Source<-"CropQ"
-OutputI$ID<-paste(OutputI$y2_hhid, OutputI$plotnum, OutputI$zaocode)
-OutputIb<-Plot3[c("y2_hhid", 'plotnum', "zaocode", "Outputkg")]
-OutputIb$Source<-"FruitQ"
-OutputIb$ID<-paste(OutputIb$y2_hhid, OutputIb$plotnum, OutputIb$zaocode)
-OutputI.tot<-rbind(OutputI, OutputIb)
-#check for duplicates in crop and permanent crop files
-check<-ddply(OutputI.tot,.(y2_hhid, plotnum, zaocode, ID), summarize, count=length(zaocode))
-check<-check[check$count>1 & !is.na(check$zaocode),]
-check2<-subset(OutputI.tot, ID %in% check$ID & zaocode %in% c("Banana", "Passion fruit"))
-OutputI<-subset(OutputI, !(ID %in% check2$ID)) # remove duplicates
-OutputI.tot<-rbind(OutputI, OutputIb)
-OutputI.tot<-OutputI.tot[!is.na(OutputI.tot$zaocode),]
-OutputI.tot<-OutputI.tot[!is.na(OutputI.tot$Outputkg),]
-rm(check, check2, OutputI, OutputIb)
-# Select only plots where maize is grown and remove values with Outputkg=0 or missing
-OutputI.tot<-ddply(OutputI.tot,.(y2_hhid, plotnum),  transform, Maize=any(zaocode %in% c("Maize")))
-OutputI.tot<-OutputI.tot[OutputI.tot$Maize,]
-OutputI.tot<-subset(OutputI.tot, Outputkg!=0 & !is.na(Outputkg))
-# Check how many crops per plot are grown
-CropCount<-OutputI.tot
-CropCount$Count<-1
-CropCount$zaocode<-factor(CropCount$zaocode)
-CropCount<-dcast(CropCount[,c(1:3,8)], ...~zaocode, value.var="Count")
-CropCount<-data.frame(freq=colSums(!is.na(CropCount[,c(3:61)])))
-# Add number of crops on plot
-OutputI.tot<-ddply(OutputI.tot,.(y2_hhid, plotnum),  transform, NumbofCrops=sum(!is.na(Outputkg)))
-MoreThan7Crops<-OutputI.tot[OutputI.tot$NumbofCrops>7,]
-table(OutputI.tot[!duplicated(OutputI.tot[,c(1,2)]),]$NumbofCrops)
-# Merge national and district price data with Output 
-OutputI.tot<-merge(OutputI.tot, Com[,c(1:6)], by=c("y2_hhid")) # Note: about 1000 observations do not have geocodes
-OutputI.tot<-merge(OutputI.tot, CropCodes[,c(1,3,4)], by.x=c("zaocode"), by.y=c("CropName"))
-OutputI.tot.District<-merge(OutputI.tot, Prices.District[,c(1,3,4)], by=c("Regions", "itemname"))
-OutputI.tot.National<-merge(OutputI.tot, Prices.District[,c(1,3,4)], by=c("Regions", "itemname"), all.x=TRUE)
-OutputI.tot.National<-OutputI.tot.National[!complete.cases(OutputI.tot.National),]
-OutputI.tot.National$Price<-NULL
-OutputI.tot.National<-merge(OutputI.tot.National, Prices.National[,c(2,3)], by=c("itemname"), all.x=TRUE)
-OutputI.tot<-rbind(OutputI.tot.National, OutputI.tot.District)
+crop.codes <- read.xls("Data/Tanzania/2010_11/Other/CropCodes.xlsx", sheet = 1)
+hhid.reg.zone <- read.csv("./Analysis/Cleaned_data/hhid_reg_zone_y2.csv",
+                          colClasses = c("character", "factor", "factor"))
+prices <- read.csv("./Analysis/Cleaned_Data/prices_winsor_y2.csv")
+colClasses <- c("character", "character", "factor", "factor", "factor", "factor", "factor",
+                "factor", "numeric", "numeric", "numeric", "numeric", "factor", "factor")
+output <- read.csv("./Analysis/Cleaned_data/plot_IO_y2.csv", colClasses = colClasses) %>% 
+  select(y2_hhid, plotnum, zaocode, output.kg)
 
-# Calculate Yield output corrected for multicropping
-OutputI.calc<-OutputI.tot
-OutputI.calc<-merge(OutputI.calc, CropCodes[,c(1,6)], by.x="zaocode", by.y="CropName")
-OutputI.calc$value<-OutputI.calc$Price*OutputI.calc$Outputkg
-OutputI.calc<-ddply(OutputI.calc,.(Regions,y2_hhid, plotnum), 
-                    summarize, PlotValue=sum(value), MaizePrice=Price[zaocode=="Maize"], MaizeValue=MaizePrice*Outputkg[zaocode=="Maize"],
-                    OutputkgOld=Outputkg[zaocode=="Maize"], OutputkgNew=PlotValue/MaizePrice, 
-                    MaizeShare=MaizeValue/PlotValue*100, NumbofCrops=unique(NumbofCrops), Beans=any(zaocode=="Beans"), CashCrop=any(CashCrop=="YES"))
-OutputI.calc$Multicropping<-ifelse(OutputI.calc$NumbofCrops>1,"Multicropping", "Singlecropping")
-OutputI.calc$Regions<-NULL # Otherwise there will be a duplication later.
-#check<-subset(OutputI.calc, MaizeShare>=25 & CashCrop)
-#check<-subset(OutputI.calc, MaizeShare>=25 & NumbofCrops>7)
+output <- output[!is.na(output$zaocode), ]
 
+# find plots which contain at least some maize on them and combine with region, zone and
+# crop codes data and also with price data
+output.maize <- ddply(output, .(y2_hhid, plotnum), transform, maize = any(zaocode == "Maize"))
+output.maize <- output.maize[output.maize$maize, ]
+output.maize <- left_join(output.maize, hhid.reg.zone)
+output.maize <- left_join(output.maize, select(crop.codes, CropName, itemname, CashCrop),
+                          by = c("zaocode" = "CropName"))
+output.maize <- inner_join(output.maize, select(prices, itemname, region, region.price.tot))
+
+count <- melt(select(output.maize, y2_hhid, plotnum, zaocode), id = c("y2_hhid", "plotnum"))
+count <- ddply(count, .(y2_hhid, plotnum), summarize,
+               crop.count = length(unique(value[!is.na(value)])))
+output.maize <- left_join(output.maize, count)
+
+output.maize$value <- output.maize$region.price * output.maize$output.kg
+
+output.maize <- ddply(output.maize, .(region, y2_hhid, plotnum), 
+                      summarize, plot.value = sum(value),
+                      maize.price = region.price.tot[zaocode == "Maize"],
+                      maize.value = maize.price * output.kg[zaocode == "Maize"],
+                      output.kg.old = output.kg[zaocode == "Maize"],
+                      output.kg.new = plot.value/maize.price, 
+                      maize.share = maize.value/plot.value * 100, crop.count = unique(crop.count),
+                      beans = any(zaocode == "Beans"), cash.crop = any(CashCrop == "YES"))
+output.maize$multi.cropping <- ifelse(output.maize$crop.count > 1,"Multicropping", "Singlecropping")
+# write.csv(output.maize, "./Analysis/Cleaned_Data/output_maize_y2.csv", row.names = FALSE)

@@ -51,9 +51,9 @@ geo.vars$zone[geo.vars$region %in% c("KASKAZINI UNGUJA", "KUSINI UNGUJA", "MJINI
 geo.vars$zone <- factor(geo.vars$zone)
 hhid.reg.zone <- select(geo.vars, hhid, region, zone) %>% arrange(zone)
 reg.zone <- unique(select(geo.vars, hhid, region, zone)) %>% arrange(zone)
-# write.csv(geo.vars, ""./Analysis/Cleaned_data/geo_vars_y1", row.names = FALSE)
-# write.csv(hhid.reg.zone, "./Analysis/Cleaned_data/hhid_reg_zone_y1.csv", row.names = FALSE)
-# write.csv(reg.zone, "./Analysis/Cleaned_data/reg_zone_y1.csv", row.names = FALSE)
+write.csv(geo.vars, "./Analysis/Cleaned_data/geo_vars_y1.csv", row.names = FALSE)
+write.csv(hhid.reg.zone, "./Analysis/Cleaned_data/hhid_reg_zone_y1.csv", row.names = FALSE)
+write.csv(reg.zone, "./Analysis/Cleaned_data/reg_zone_y1.csv", row.names = FALSE)
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # B. This sections purpose is to create variables refering to the individual household. This 
@@ -99,8 +99,8 @@ plot.IO$seed.price[plot.IO$s4aq19 == "NO"] <- 0
 levels(plot.IO$seed.type) <- c(levels(plot.IO$seed.type), "None purchased")
 plot.IO$seed.type[plot.IO$ag4a_19 == "NO"] <- "None purchased"
 plot.tree <- select(AQSEC6A, hhid, plotnum, zaocode, output.kg = s6aq8)
-# write.csv(plot.IO, "./Analysis/Cleaned_data/plot_IO_Y1.csv", row.names = FALSE)
-# write.csv(plot.tree, "./Analysis/Cleaned_data/plot_tree_Y1.csv", row.names = FALSE)
+write.csv(plot.IO, "./Analysis/Cleaned_data/plot_IO_Y1.csv", row.names = FALSE)
+write.csv(plot.tree, "./Analysis/Cleaned_data/plot_tree_Y1.csv", row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -162,7 +162,7 @@ plot.vars$pest.kg[is.na(plot.vars$pest.kg)] <- 0
 plot.vars$fam.lab.days[is.na(plot.vars$fam.lab.days)] <- 0
 plot.vars$hir.lab.days[is.na(plot.vars$hir.lab.days)] <- 0
 
-# write.csv(plot.vars, "./Analysis/Cleaned_data/plot_vars_y1.csv , row.names = FALSE)
+write.csv(plot.vars, "./Analysis/Cleaned_data/plot_vars_y1.csv" , row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # `````````````````````````````````````````````````````````````````````````````````````````````````` 
@@ -176,7 +176,7 @@ AQSEC3A <- read.dta("./Data/Tanzania/2008_09/Stata/TZNPS1AGDTA_E/SEC_3A.dta",
 hhid.reg.zone <- read.csv("./Analysis/Cleaned_data/hhid_reg_zone_y1.csv",
                             colClasses = c("character", "factor", "factor"))
 AQSEC3A$s3aq44[AQSEC3A$s3aq44 == 9] <- NA
-fert.vars <- left_join(AQSEC3A, region_and_zone) %>%
+fert.vars <- left_join(AQSEC3A, hhid.reg.zone) %>%
   transmute(hhid, plotnum, region, zone, 
             fert = factor(s3aq43, labels = c("YES", "NO")),
             fert.kg = s3aq45, fert.price = s3aq46,
@@ -187,7 +187,6 @@ fert.vars <- left_join(AQSEC3A, region_and_zone) %>%
 fert.comp <- read.xls("Data/Other/Fert_comp.xlsx", sheet = 2) %>% rename(fert.type = Fert_type2)
 fert.comp$P_share <- as.numeric(fert.comp$P_share)
 fert.comp$K_share <- as.numeric(fert.comp$K_share)
-# fert.comp <- select(fert.comp, fert.type, N_share, P_share, K_share) 
 fert.vars <- merge(fert.vars, select(fert.comp, fert.type, N_share, P_share, K_share), all.x = TRUE) 
 fert.vars <- mutate(fert.vars, N = fert.kg * (N_share/100),
                     P = fert.kg * (P_share/100), K = fert.kg * (K_share/100),
@@ -197,11 +196,23 @@ fert.vars <- mutate(fert.vars, N = fert.kg * (N_share/100),
 
 
 fert.vars$year <- "2008"
-# write.csv(fert.vars, "./Analysis/Cleaned_data/fert_vars_y1.csv", row.names = FALSE)
+write.csv(fert.vars, "./Analysis/Cleaned_data/fert_vars_y1.csv", row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-# F. Price variables are cleaned and processed. These are then exported and analysed in a seperate
+# F. fertilizer variables are winsored by item and region are cleaned and processed. And stored in
+# a seperate file
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+source("./Analysis/Functions/winsor.R")
+fert.vars <- read.csv("./Analysis/Cleaned_Data/fert_vars_y1.csv")
+fert.vars.winsor <- ddply(fert.vars, .(region, fert.type),
+                          function(elt) winsor(elt, 0.975, "nit.price.kg"))
+write.csv(fert.vars.winsor, "./Analysis/Cleaned_data/fert_vars_winsor_y1.csv", row.names = FALSE)
+
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+# G. Price variables are cleaned and processed. These are then exported and analysed in a seperate
 #    code file.
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -221,7 +232,7 @@ prices$price.unit <- with(prices,
                                                      ifelse(unit == "Pieces", price/(weight),
                                                             price/weight))))))
 
-# write.csv(prices, "./Analysis/Cleaned_Data/prices_y1.csv", row.names = FALSE)
+write.csv(prices, "./Analysis/Cleaned_Data/prices_y1.csv", row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -242,14 +253,13 @@ prices.region$region.price[prices.region$num.obs < 5] <- NA
 prices.region <- left_join(prices.region, prices.national)
 bad <- is.na(prices.region$region.price)
 prices.region$region.price[bad] <- prices.region$national.price[bad]
-# write.csv(prices.region,"./Analysis/Cleaned_Data/prices_winsor_y1.csv", row.names = FALSE )
+write.csv(prices.region,"./Analysis/Cleaned_Data/prices_winsor_y1.csv", row.names = FALSE )
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # H. Output variables
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-# read in data
 crop.codes <- read.xls("Data/Tanzania/2010_11/Other/CropCodes.xlsx", sheet = 1)
 hhid.reg.zone <- read.csv("./Analysis/Cleaned_data/hhid_reg_zone_y1.csv",
                             colClasses = c("character", "factor", "factor"))

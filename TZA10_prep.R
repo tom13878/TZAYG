@@ -46,10 +46,11 @@ geo.vars$zone[geo.vars$region %in% c("Kaskazini Unguja", "Kusini Unguja", "Mjini
 geo.vars$zone <- factor(geo.vars$zone)
 hhid.reg.zone <- select(geo.vars, y2_hhid, region, zone) %>% arrange(zone)
 reg.zone <- unique(select(geo.vars, y2_hhid, region, zone)) %>% arrange(zone)
+hhid.lon.lat <- select(geo.vars, hhid, lon, lat)
 # write.csv(geo.vars, "./Analysis/Cleaned_data/geo_vars_y2.csv", row.names = FALSE)
 # write.csv(hhid.reg.zone, "./Analysis/Cleaned_data/hhid_reg_zone_y2.csv", row.names = FALSE)
 # write.csv(reg.zone, "./Analysis/Cleaned_data/reg_zone_y2.csv", row.names = FALSE)
-
+write.csv(hhid.lon.lat, "./Analysis/Cleaned_data/hhid_lon_lat.csv", row.names = FALSE)
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # B. Household level data - Create HH level indicators

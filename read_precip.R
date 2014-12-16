@@ -60,8 +60,8 @@ precip.vars.y2 <- data.frame(cbind(hhid.lon.lat.y2, precip.vals.y2)) %>%
 head(precip.vars.y1, 20)
 head(precip.vars.y2, 20)
 
-write.csv(precip.var.y1, "./Analysis/Cleaned_data/precip_vars_y1.csv", row.names = FALSE)
-write.csv(precip.var.y2, "./Analysis/Cleaned_data/precip_vars_y2.csv", row.names = FALSE)
+write.csv(precip.vars.y1, "./Analysis/Cleaned_data/precip_vars_y1.csv", row.names = FALSE)
+write.csv(precip.vars.y2, "./Analysis/Cleaned_data/precip_vars_y2.csv", row.names = FALSE)
 
 # some plots
 plot(precip.raster.y1, 1)

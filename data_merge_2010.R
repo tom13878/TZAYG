@@ -7,22 +7,31 @@
 # setwd("D:\\Dijk158\\Dropbox\\Michiel research\\Micro_IPOP")
 setwd("c:/Users/morle001/Dropbox/Micro_IPOP")
 
+library(dplyr)
+
 # 2. set some options
 options(scipen = 999) # surpress scientific notation
 options("stringsAsFactors" = FALSE) 
 options(digits = 4)
 
 # 3. read in data
-# geo variables
-# hh variables
-# plot indicator variables
-# fertilizer variables
-# output variables
+geo.vars <- read.csv("./Analysis/Cleaned_data/geo_vars_y2.csv")
+hh.total <- read.csv("./Analysis/Cleaned_data/hh_total_y2.csv")
+plot.IO <- read.csv("./Analysis/Cleaned_data/plot_IO_Y2.csv")
+plot.vars <- read.csv("./Analysis/Cleaned_data/plot_vars_y2.csv")
+fert.vars.winsor <- read.csv("./Analysis/Cleaned_data/fert_vars_winsor_y2.csv")
+output.maize <- read.csv("./Analysis/Cleaned_Data/output_maize_y2.csv")
 
 # 4. merge data into a single file
 
-# 5. save as a final database
+database.2010 <- left_join(geo.vars, hh.total)
+database.2010 <- inner_join(database.2010, plot.vars)
+# database.2010 <- inner_join(database.2010, plot.IO) do something with zaocode
+database.2010 <- left_join(database.2010, fert.vars.winsor)
+database.2010 <- left_join(database.2010, output.maize)
 
+# 5. save as a final database
+# write.csv(database.2010, "./Analysis/Cleaned_Data/database_2010.csv)
 
 
 

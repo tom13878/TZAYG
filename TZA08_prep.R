@@ -19,8 +19,8 @@ lapply(x, library, character.only = TRUE)
 library(dplyr)
 
 # 4. source functions
-source("./Analysis/Functions/plus.R") 
-source("./Analysis/Functions/missing.plot.R") 
+source("M:/TZAYG/plus.R") 
+source("M:/TZAYG/missing.plot.R") 
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -72,13 +72,17 @@ AQSEC3A <- read.dta("./Data/Tanzania/2008_09/Stata/TZNPS1AGDTA_E/SEC_3A.dta",
 hh.char <- select(HQSECBU, hhid, member = sbmemno, status = sbq5, sex = sbq2, age = sbq4) %>%
   ddply(.(hhid), transform, hh.size = length(member)) %>% filter(status == "HEAD") %>%
   select(-(member:status))
+
 hh.cap <- ddply(AQSEC11, .(hhid), summarize, cap.own = plus(s11q1 * s11q2),
                 cap.rent = plus(s11q7 * s11q9))
 hh.cap$cap.rent[is.na(hh.cap$cap.rent)] <- 0 
+
 hh.plots <- ddply(AQSEC3A, .(hhid), summarize, plots = sum(!is.na(plotnum)),
                   plot.missing = factor(missing.plot(s3aq5code)))
+
 hh.total <- left_join(hh.char, hh.cap) %>% left_join(hh.plots)
-write.csv(hh.total, "./Analysis/Cleaned_data/hh_total_y1.csv", row.names = FALSE)
+# write.csv(hh.total, "./Analysis/Cleaned_data/hh_total_y1.csv", row.names = FALSE)
+write.dta(hh.total, "./Analysis/code_book/hh.total.dta", version = 7L)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````

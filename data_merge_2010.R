@@ -1,6 +1,9 @@
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # TZA 2010 merge - merge all year 2 databases into one database.
+
+# variables from what was the original plot.IO database are not read in because they become part of
+# the output database
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # 1. set working directory
@@ -14,7 +17,7 @@ options(scipen = 999) # surpress scientific notation
 options("stringsAsFactors" = FALSE) 
 options(digits = 4)
 
-# 3. read in data
+# 3. read in data - still need to create some of these files
 geo.vars <- read.csv("./Analysis/Cleaned_data/geo_vars_y2.csv")
 hh.total <- read.csv("./Analysis/Cleaned_data/hh_total_y2.csv")
 plot.IO <- read.csv("./Analysis/Cleaned_data/plot_IO_Y2.csv")
@@ -31,7 +34,7 @@ database.2010 <- left_join(database.2010, fert.vars.winsor)
 database.2010 <- left_join(database.2010, output.maize)
 
 # 5. save as a final database
-# write.csv(database.2010, "./Analysis/Cleaned_Data/database_2010.csv)
+# write.csv(database.2010, "./Analysis/Cleaned_Data/database_2010.csv", )
 
 
 

@@ -1,0 +1,24 @@
+# codebook test 2008 household data
+
+setwd("c:/Users/morle001/Dropbox/Micro_IPOP")
+library(memisc)
+
+hh.total <- Stata.file("./Analysis/code_book/hh.total.dta")
+hh.total <- rename(hh.total,
+                   hh_size = "hh.size",
+                   cap_own = "cap.own",
+                   cap_rent = "cap.rent",
+                   plot_missing = "plot.missing")
+                   
+hh.total <- within(hh.total, {
+  description(hhid) <- "Household identification number of respondent"
+  description(sex) <- "Sex of respondent"
+  description(age) <- "Age of respondent"
+  description(hh.size) <- "Size of the household (number of members)"
+  description(cap.own) <- "Capital stock owned by household"
+  description(cap.rent) <- "Capital stock rented by the household"
+  description(plots) <- "number of plots cultivated by household"
+  description(plot.missing) <- "Is plot missing?"
+})
+
+codebook(hh.total)

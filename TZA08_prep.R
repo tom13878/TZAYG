@@ -269,19 +269,18 @@ write.csv(prices.region,"./Analysis/Cleaned_Data/prices_winsor_y1.csv", row.name
 crop.codes <- read.xls("Data/Tanzania/2010_11/Other/CropCodes.xlsx", sheet = 1)
 hhid.reg.zone <- read.csv("./Analysis/Cleaned_data/hhid_reg_zone_y1.csv",
                             colClasses = c("character", "factor", "factor"))
-prices <- read.csv("./Analysis/Cleaned_Data/prices_winsor_y1.csv")
+prices <- read.csv("./Analysis/Cleaned_Data/prices_winsor_y1.csv",
+                   colClasses = c("factor","factor","numeric", "numeric", "numeric"))
 colClasses <- c("character", "character", "factor", "factor", "factor", "numeric",
                 "numeric", "numeric", "numeric", "factor", "factor")
 output <- read.csv("./Analysis/Cleaned_data/plot_IO_Y1.csv", colClasses = colClasses) %>% 
-  select(hhid, plotnum, zaocode, output.kg)
-# remove single NA value for zaocode - typo
-output <- output[!is.na(output$zaocode), ]
+  select(hhid, plotnum, zaocode, output.kg, total.plot, inter.crop, seed.type)
 
 # find plots which contain at least some maize on them and combine with region, zone and
 # crop codes data and also with price data
 output.maize <- ddply(output, .(hhid, plotnum), transform, maize = any(zaocode == "Maize"))
 output.maize <- output.maize[output.maize$maize, ]
-output.maize <- left_join(output.maize, hhid.reg.zone)
+output.maize <- inner_join(output.maize, hhid.reg.zone)
 output.maize <- left_join(output.maize, select(crop.codes, CropName, itemname, CashCrop),
                           by = c("zaocode" = "CropName"))
 output.maize <- inner_join(output.maize, select(prices, itemname, region, region.price))
@@ -295,7 +294,7 @@ output.maize <- left_join(output.maize, count)
  
 output.maize$value <- output.maize$region.price * output.maize$output.kg
 
-# calculate the Liu-Meyres index adding a variable for multicropping
+# calculate the Liu-Meyres index
 output.maize <- ddply(output.maize, .(region, hhid, plotnum), 
                     summarize, plot.value = sum(value),
                     maize.price = region.price[zaocode == "Maize"],
@@ -304,5 +303,8 @@ output.maize <- ddply(output.maize, .(region, hhid, plotnum),
                     output.kg.new = plot.value/maize.price, 
                     maize.share = maize.value/plot.value * 100, crop.count = unique(crop.count),
                     beans = any(zaocode == "Beans"), cash.crop = any(CashCrop == "YES"))
-output.maize$multi.cropping <- ifelse(output.maize$crop.count > 1,"Multicropping", "Singlecropping")
+output <- filter(output, zaocode == "Maize") %>% 
+  select(hhid, plotnum, total.plot, inter.crop, seed.type)
+output.maize <- left_join(output.maize, output)
+
 write.csv(output.maize, "./Analysis/Cleaned_Data/output_maize_y1.csv", row.names = FALSE)

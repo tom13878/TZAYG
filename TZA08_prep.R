@@ -26,7 +26,7 @@ source("M:/TZAYG/missing.plot.R")
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # A. This sections purpose is to create a database of geo variables which will later be merged into
 #    the overall database for year 1. This includes creating a zone variable which will be important
-#    for analysis. In addition to auxillary databases are created. The first holds the hhid of each
+#    for analysis. In addition two auxillary databases are created. The first holds the hhid of each
 #    household and their corresponding region and zones, and the second contains each region and 
 #    it's correponding zone.
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -264,6 +264,8 @@ write.csv(prices.region,"./Analysis/Cleaned_Data/prices_winsor_y1.csv", row.name
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # H. Output variables
+# TODO(tom morley): change the name of some crops which do not have a corresponding name in the
+# price data
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 crop.codes <- read.xls("Data/Tanzania/2010_11/Other/CropCodes.xlsx", sheet = 1)
@@ -281,7 +283,7 @@ output <- read.csv("./Analysis/Cleaned_data/plot_IO_Y1.csv", colClasses = colCla
 output.maize <- ddply(output, .(hhid, plotnum), transform, maize = any(zaocode == "Maize"))
 output.maize <- output.maize[output.maize$maize, ]
 output.maize <- inner_join(output.maize, hhid.reg.zone)
-output.maize <- left_join(output.maize, select(crop.codes, CropName, itemname, CashCrop),
+output.maize <- inner_join(output.maize, select(crop.codes, CropName, itemname, CashCrop),
                           by = c("zaocode" = "CropName"))
 output.maize <- inner_join(output.maize, select(prices, itemname, region, region.price))
 

@@ -18,9 +18,8 @@ lapply(x, library, character.only = TRUE)
 library(dplyr)
 
 # 4. source functions
-source("./Analysis/Functions/plus.R") 
-source("./Analysis/Functions/missing.plot.R") 
-
+source("M:/TZAYG/plus.R") 
+source("M:/TZAYG/missing.plot.R") 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # A. community data
@@ -313,6 +312,8 @@ prices.region$region.price.tot[bad] <- prices.region$national.price.tot[bad]
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # H. output data
+# TODO(tom morley): change the name of some crops which do not have a corresponding name in the
+# price data
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # Compute output index following Sheahan
@@ -323,9 +324,7 @@ prices <- read.csv("./Analysis/Cleaned_Data/prices_winsor_y2.csv")
 colClasses <- c("character", "character", "factor", "factor", "factor", "factor", "factor",
                 "factor", "numeric", "numeric", "numeric", "numeric", "factor", "factor")
 output <- read.csv("./Analysis/Cleaned_data/plot_IO_y2.csv", colClasses = colClasses) %>% 
-  select(y2_hhid, plotnum, zaocode, output.kg)
-
-output <- output[!is.na(output$zaocode), ]
+  select(y2_hhid, plotnum, zaocode, output.kg, total.plot, inter.crop, seed.type)
 
 # find plots which contain at least some maize on them and combine with region, zone and
 # crop codes data and also with price data
@@ -351,5 +350,8 @@ output.maize <- ddply(output.maize, .(region, y2_hhid, plotnum),
                       output.kg.new = plot.value/maize.price, 
                       maize.share = maize.value/plot.value * 100, crop.count = unique(crop.count),
                       beans = any(zaocode == "Beans"), cash.crop = any(CashCrop == "YES"))
-output.maize$multi.cropping <- ifelse(output.maize$crop.count > 1,"Multicropping", "Singlecropping")
+output <- filter(output, zaocode == "Maize") %>% 
+  select(y2_hhid, plotnum, total.plot, inter.crop, seed.type)
+output.maize <- left_join(output.maize, output)
+
 # write.csv(output.maize, "./Analysis/Cleaned_Data/output_maize_y2.csv", row.names = FALSE)

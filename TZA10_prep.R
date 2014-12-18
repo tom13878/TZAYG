@@ -239,7 +239,19 @@ fert.vars <- mutate(fert.vars, N = fert.kg * (N_share/100),
   arrange(fert.type, y2_hhid, plotnum)
 
 fert.vars$year <- "2010"
-# write.csv(fert.vars, "./Analysis/Cleaned_data/fert_vars_y2.csv", row.names = FALSE)
+write.csv(fert.vars, "./Analysis/Cleaned_data/fert_vars_y2.csv", row.names = FALSE)
+
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+# F. fertilizer variables are winsored by item and region and are cleaned and processed. And stored in
+# a seperate file
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+# ``````````````````````````````````````````````````````````````````````````````````````````````````
+source("M:/TZAYG/winsor.R")
+fert.vars <- read.csv("./Analysis/Cleaned_Data/fert_vars_y2.csv")
+fert.vars.winsor <- ddply(fert.vars, .(region, fert.type),
+                          function(elt) winsor(elt, 0.975, "nit.price.kg"))
+write.csv(fert.vars.winsor, "./Analysis/Cleaned_data/fert_vars_winsor_y2.csv", row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -317,7 +329,7 @@ prices.region$region.price.tot[bad] <- prices.region$national.price.tot[bad]
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # Compute output index following Sheahan
-crop.codes <- read.xls("Data/Tanzania/2010_11/Other/CropCodes.xlsx", sheet = 1)
+crop.codes <- read.csv("./Analysis/Cleaned_data/crop_codes.csv")
 hhid.reg.zone <- read.csv("./Analysis/Cleaned_data/hhid_reg_zone_y2.csv",
                           colClasses = c("character", "factor", "factor"))
 prices <- read.csv("./Analysis/Cleaned_Data/prices_winsor_y2.csv")
@@ -331,9 +343,9 @@ output <- read.csv("./Analysis/Cleaned_data/plot_IO_y2.csv", colClasses = colCla
 output.maize <- ddply(output, .(y2_hhid, plotnum), transform, maize = any(zaocode == "Maize"))
 output.maize <- output.maize[output.maize$maize, ]
 output.maize <- left_join(output.maize, hhid.reg.zone)
-output.maize <- left_join(output.maize, select(crop.codes, CropName, itemname, CashCrop),
-                          by = c("zaocode" = "CropName"))
-output.maize <- inner_join(output.maize, select(prices, itemname, region, region.price.tot))
+output.maize <- merge(output.maize, select(crop.codes, crop.name, itemname, cash.crop),
+                      by.x = "zaocode", by.y = "crop.name", all.x = TRUE)
+output.maize <- left_join(output.maize, select(prices, itemname, region, region.price = region.price.tot))
 
 count <- melt(select(output.maize, y2_hhid, plotnum, zaocode), id = c("y2_hhid", "plotnum"))
 count <- ddply(count, .(y2_hhid, plotnum), summarize,

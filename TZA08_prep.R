@@ -281,19 +281,18 @@ output <- read.csv("./Analysis/Cleaned_data/plot_IO_Y1.csv", colClasses = colCla
 # find plots which contain at least some maize on them and combine with region, zone and
 # crop codes data and also with price data
 output.maize <- ddply(output, .(hhid, plotnum), transform, maize = any(zaocode == "Maize"))
-output.maize <- output.maize[output.maize$maize, ]
-output.maize <- inner_join(output.maize, hhid.reg.zone)
-output.maize <- inner_join(output.maize, select(crop.codes, CropName, itemname, CashCrop),
-                          by = c("zaocode" = "CropName"))
-output.maize <- inner_join(output.maize, select(prices, itemname, region, region.price))
+output.maize <- output.maize[output.maize1$maize, ]
+output.maize <- left_join(output.maize, hhid.reg.zone)
+output.maize <- merge(output.maize, select(crop.codes, CropName, itemname, CashCrop),
+                          by.x = "zaocode", by.y = "CropName", all.x = TRUE)
+output.maize <- left_join(output.maize, select(prices, itemname, region, region.price))
 
 # count the number of crops on each plot and combine with the output and price data
 # calculate the value in shillings of each plot
 count <- melt(select(output.maize, hhid, plotnum, zaocode), id = c("hhid", "plotnum"))
 count <- ddply(count, .(hhid, plotnum), summarize,
                crop.count = length(unique(value[!is.na(value)])))
-output.maize <- left_join(output.maize, count)
- 
+output.maize <- left_join(output.maize, count) 
 output.maize$value <- output.maize$region.price * output.maize$output.kg
 
 # calculate the Liu-Meyres index
@@ -309,4 +308,4 @@ output <- filter(output, zaocode == "Maize") %>%
   select(hhid, plotnum, total.plot, inter.crop, seed.type)
 output.maize <- left_join(output.maize, output)
 
-write.csv(output.maize, "./Analysis/Cleaned_Data/output_maize_y1.csv", row.names = FALSE)
+# write.csv(output.maize, "./Analysis/Cleaned_Data/output_maize_y1.csv", row.names = FALSE)

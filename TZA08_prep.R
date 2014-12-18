@@ -268,7 +268,7 @@ write.csv(prices.region,"./Analysis/Cleaned_Data/prices_winsor_y1.csv", row.name
 # price data
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-crop.codes <- read.xls("Data/Tanzania/2010_11/Other/CropCodes.xlsx", sheet = 1)
+crop.codes <- read.csv("./Analysis/Cleaned_data/crop_codes_y1.csv")
 hhid.reg.zone <- read.csv("./Analysis/Cleaned_data/hhid_reg_zone_y1.csv",
                             colClasses = c("character", "factor", "factor"))
 prices <- read.csv("./Analysis/Cleaned_Data/prices_winsor_y1.csv",
@@ -281,10 +281,10 @@ output <- read.csv("./Analysis/Cleaned_data/plot_IO_Y1.csv", colClasses = colCla
 # find plots which contain at least some maize on them and combine with region, zone and
 # crop codes data and also with price data
 output.maize <- ddply(output, .(hhid, plotnum), transform, maize = any(zaocode == "Maize"))
-output.maize <- output.maize[output.maize1$maize, ]
+output.maize <- output.maize[output.maize$maize, ]
 output.maize <- left_join(output.maize, hhid.reg.zone)
-output.maize <- merge(output.maize, select(crop.codes, CropName, itemname, CashCrop),
-                          by.x = "zaocode", by.y = "CropName", all.x = TRUE)
+output.maize <- merge(output.maize, select(crop.codes, crop.name, itemname, cash.crop),
+                          by.x = "zaocode", by.y = "crop.name", all.x = TRUE)
 output.maize <- left_join(output.maize, select(prices, itemname, region, region.price))
 
 # count the number of crops on each plot and combine with the output and price data
@@ -303,7 +303,7 @@ output.maize <- ddply(output.maize, .(region, hhid, plotnum),
                     output.kg.old = output.kg[zaocode == "Maize"],
                     output.kg.new = plot.value/maize.price, 
                     maize.share = maize.value/plot.value * 100, crop.count = unique(crop.count),
-                    beans = any(zaocode == "Beans"), cash.crop = any(CashCrop == "YES"))
+                    beans = any(zaocode == "Beans"), cash.crop = any(cash.crop == "YES"))
 output <- filter(output, zaocode == "Maize") %>% 
   select(hhid, plotnum, total.plot, inter.crop, seed.type)
 output.maize <- left_join(output.maize, output)

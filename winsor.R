@@ -1,29 +1,24 @@
 # created by: Tom Morley
-# Date: 25-11-2014
-# A function to winsorize data at a level level defined by the argument x. 
-# The first argument is a dataframe, the second argument is a number between 0 and 1
-# corresponding to the level at which you want to winsor and the third argument is a
-# string referring to the column over which you want the winsoring to take place
+# Date: 22-12-2014
 
-winsor <- function(df, x, var) {
-        
-        q = quantile(df[, var], probs = c(x), na.rm = TRUE)
-        
-        for (i in 1:length(df[, var])){
-                
-                if(is.na(df[, var][i])) {
-                        next
-                } else if (df[, var][i] > q) {
-                        df[, var][i] = q
-                } else { 
-                        next
-                }
-        } 
-        df
-}
+winsor <- function(df, var, x) {
+  
+  ord <- order(df[, var])
+  C <- ord[x*length(ord)]
+  
+  for (i in 1:length(df[, var])) {
+    if (df[, var][i] < df[, var][C]){
+      next
+    } else {
+      df[, var][i] <- df[, var][C]
+    }   
+  }
+  df
+}        
+       
 
 # example
-# df <- data.frame(x = sample(1:100, 10), y = sample(1:100, 10), z = sample(1:100,10))
-# winsor(df = df, x = 0.975, var = "z")
-# winsor(df = df, x = 0.95, var = "y")
-# winsor(df = df, x = 0.9, var = "x")
+# df <- data.frame(x = sample(1:10000, 100), y = sample(1:10000, 100))
+# w1 <- winsor(df = df, "x", 0.95)
+# w2 <- winsor(df = df, x = 0.95, var = "y")
+

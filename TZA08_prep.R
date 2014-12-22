@@ -104,6 +104,7 @@ plot.IO <- transmute(AQSEC4A, hhid, plotnum, zaocode, total.plot = s4aq3,
 plot.IO$seed.price[plot.IO$s4aq19 == "NO"] <- 0 
 levels(plot.IO$seed.type) <- c(levels(plot.IO$seed.type), "None purchased")
 plot.IO$seed.type[plot.IO$ag4a_19 == "NO"] <- "None purchased"
+plot.IO <- plot.IO[!is.na(plot.IO$output.kg) & !(plot.IO$output.kg == 0),]
 plot.tree <- select(AQSEC6A, hhid, plotnum, zaocode, output.kg = s6aq8)
 write.csv(plot.IO, "./Analysis/Cleaned_data/plot_IO_Y1.csv", row.names = FALSE)
 write.csv(plot.tree, "./Analysis/Cleaned_data/plot_tree_Y1.csv", row.names = FALSE)
@@ -238,6 +239,9 @@ prices$price.unit <- with(prices,
                                                      ifelse(unit == "Pieces", price/(weight),
                                                             price/weight))))))
 
+good <- complete.cases(prices)
+prices <- prices[good, ]
+
 write.csv(prices, "./Analysis/Cleaned_Data/prices_y1.csv", row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
@@ -246,9 +250,12 @@ write.csv(prices, "./Analysis/Cleaned_Data/prices_y1.csv", row.names = FALSE)
 #    prices
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-source("./Analysis/Functions/winsor.R")
+source("M:/TZAYG/winsor.R")
 prices <- read.csv("./Analysis/Cleaned_Data/prices_y1.csv")
-prices <- ddply(prices, .(region, itemname), function(elt) winsor(elt, 0.975, "price.unit"))
+# TODO (tommorley): need to change how we winsor prices in order to get reseasonable 
+# estimates
+prices.maize.only <- prices[prices$itemname == "Maize (grain)", ]
+prices.maize.only <- ddply(prices.maize.only, .(region), function(elt) winsor(elt, "price.unit", 0.95))
 
 prices.region <- ddply(prices, .(region, itemname), summarize,
                        region.price = mean(price.unit, na.rm = TRUE),
@@ -264,11 +271,9 @@ write.csv(prices.region,"./Analysis/Cleaned_Data/prices_winsor_y1.csv", row.name
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # H. Output variables
-# TODO(tom morley): change the name of some crops which do not have a corresponding name in the
-# price data
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
-crop.codes <- read.csv("./Analysis/Cleaned_data/crop_codes_y1.csv")
+crop.codes <- read.csv("./Analysis/Cleaned_data/crop_codes.csv")
 hhid.reg.zone <- read.csv("./Analysis/Cleaned_data/hhid_reg_zone_y1.csv",
                             colClasses = c("character", "factor", "factor"))
 prices <- read.csv("./Analysis/Cleaned_Data/prices_winsor_y1.csv",
@@ -308,4 +313,4 @@ output <- filter(output, zaocode == "Maize") %>%
   select(hhid, plotnum, total.plot, inter.crop, seed.type)
 output.maize <- left_join(output.maize, output)
 
-# write.csv(output.maize, "./Analysis/Cleaned_Data/output_maize_y1.csv", row.names = FALSE)
+write.csv(output.maize, "./Analysis/Cleaned_Data/output_maize_y1.csv", row.names = FALSE)

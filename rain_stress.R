@@ -56,23 +56,21 @@ get.precip.data <- function(file.vec, classes){
 classes <- c(rep("factor",2), rep("character", 1), rep("numeric",14), rep("factor",3), rep("numeric",2))
 precip.y1 <- get.precip.data(files.y1, classes)
 precip.y1$date <- as.POSIXlt(strptime(precip.y1$date, format = "%Y%m%d"))
-long.rains <- subset(station, date >= as.POSIXlt("2008-03-01") & date <= as.POSIXlt("2008-05-31"))
+long.rains <- subset(precip.y1, date >= as.POSIXlt("2008-03-01") & date <= as.POSIXlt("2008-05-31"))
 
 
 ````````````````````````````````````````````````````````````````````````````````````````````````````
+TZA.coords$BEGIN <- as.POSIXlt(strptime(TZA.coords$BEGIN, format = "%Y%m%d"))
+TZA.coords$END <- as.POSIXlt(strptime(TZA.coords$END, format = "%Y%m%d"))
+complete.station <- subset(TZA.coords, END >= 2010-03-01)
+complete.station$count <- complete.station$END - complete.station$BEGIN
 # next stage is to select the stations for which we have data covering the correct period of time.
 # then plot those stations to see which regions we have data for
 # Then decide what to do next!!
 
 
-# now you want to create a loop which gets the right files containing the correct data
-readLines(gzfile("D:/precip/Data/Files/637330-99999-2008.op.gz"), 6)
-classes <- c(rep("factor",2), rep("character", 1), rep("numeric",14), rep("factor",3), rep("numeric",2))
-x <- read.table(gzfile("D:/precip/Data/Files/638940-99999-2008.op.gz", open = "rt"), sep = "", header = FALSE, skip = 1, colClasses = classes)
-
-untar(paste(getwd(),"/Data/","gsod_2008.tar",sep=""),exdir=paste(getwd(),"/Data/Files",sep=""))
 
 
-data.test <- read.table(gzfile("D:/precip/Data/Files/010010-99999-2008.op.gz", open="rt"), sep="",header=FALSE,skip=1,colClasses=classes)
+
 
      

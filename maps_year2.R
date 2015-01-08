@@ -1,10 +1,13 @@
 # maps for year 2
-setwd('C:/locris')
+# setwd('C:/locris')
+setwd('C:/Users/morle001/Dropbox/Micro_IPOP')
 library(Hmisc)
 library(raster)
+library(plyr)
+library(dplyr)
 
 # 1. read in output data and select only plots growing maize
-plot.IO <- read.csv('C:/Users/Tomas/Dropbox/Micro_IPOP/Analysis/Cleaned_data/plot_IO_Y2.csv')
+plot.IO <- read.csv('./Analysis/Cleaned_data/plot_IO_Y2.csv')
 maize <- filter(plot.IO, zaocode == 'Maize')
 maize$y2_hhid <- as.character(maize$y2_hhid)
 
@@ -13,9 +16,9 @@ maize$y2_hhid <- as.character(maize$y2_hhid)
 #    plots producing the largest amount of maize with other plots
 
 # 3. get region and zone information - get geo information too
-hhid.reg.zone <- read.csv('C:/Users/Tomas/Dropbox/Micro_IPOP/Analysis/Cleaned_data/hhid_reg_zone_y2.csv')
+hhid.reg.zone <- read.csv('./Analysis/Cleaned_data/hhid_reg_zone_y2.csv')
 hhid.reg.zone$y2_hhid <- as.character(hhid.reg.zone$y2_hhid)
-coords <- read.csv('C:/Users/Tomas/Dropbox/Micro_IPOP/Analysis/Cleaned_data/lon_lat.csv')
+coords <- read.csv('./Analysis/Cleaned_data/lon_lat.csv')
 coords$y2_hhid <- as.character(coords$y2_hhid)
 with(coords, plot(lon, lat))
 

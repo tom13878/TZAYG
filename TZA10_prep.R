@@ -163,7 +163,7 @@ fam.lab.days <- apply(select(plot.vars[, -bad], ag3a_70_1:ag3a_70_30), 1, plus)
 hir.lab.days <- apply(select(plot.vars, ag3a_72_1:ag3a_72_9)[, c(1:3, 5:7, 9:11, 13:15)], 1, plus)
 plot.vars <- cbind(plot.vars, fam.lab.days) %>% cbind(hir.lab.days)
 
-plot.vars <- transmute(plot.vars, y2_hhid, plotnum, hir.lab.days, fam.lab.days
+plot.vars <- transmute(plot.vars, y2_hhid, plotnum, hir.lab.days, fam.lab.days,
                  area.est = ag2a_04*0.40468564224, area.gps = ag2a_09*0.40468564224, 
                  plot.dist = as.numeric(dist01), 
                  main.crop = factor(zaocode, levels=CropCodes$zaocode, labels = CropCodes$CropName), 
@@ -195,7 +195,7 @@ plot.vars$pest.kg[is.na(plot.vars$pest.kg)] <- 0
 plot.vars$fam.lab.days[is.na(plot.vars$fam.lab.days)] <- 0
 plot.vars$hir.lab.days[is.na(plot.vars$hir.lab.days)] <- 0
 
-# write.csv(plot.vars, "./Analysis/Cleaned_data/plot_vars_y2.csv , row.names = FALSE)
+write.csv(plot.vars, "./Analysis/Cleaned_data/plot_vars_y2.csv , row.names = FALSE)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 # ``````````````````````````````````````````````````````````````````````````````````````````````````

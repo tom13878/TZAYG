@@ -5,20 +5,25 @@
 #                   values too - try this by creating a class?
 
 winsor <- function(df, var, x) {
-  
-  ord <- order(df[, var])
-  C <- ord[x*length(ord)]
-  
-  for (i in 1:length(df[, var])) {
-    if (df[, var][i] < df[, var][C]){
-      next
-    } else {
-      df[, var][i] <- df[, var][C]
-    }   
-  }
-  df
+        
+        ord <- order(df[, var])
+        C <- ord[x*length(ord)]
+        
+        for (i in 1:length(df[, var])) {
+                
+                if (is.na(df[, var][i])){
+                        next
+                } else {
+                        if (df[, var][i] < df[, var][C]){
+                                next
+                        } else {
+                                df[, var][i] <- df[, var][C]
+                        } 
+                }
+        }
+        df
 }        
-       
+
 
 # example
 # df <- data.frame(x = sample(1:10000, 100), y = sample(1:10000, 100))

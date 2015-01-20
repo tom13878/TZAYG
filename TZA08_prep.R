@@ -1,6 +1,11 @@
-#' take data from LSMS - ISA survey for tanzania and organize
-#' select important variables 
-#' tidy the data
+#' script for cleaning the LSMS-ISA Tanzania 2008 database. The script is split
+#' into five section labelled A to E which clean and prepare data on household
+#' characteristics, input and output variables at the plot level, plot
+#' characteristics, fertilizer prices and information and foods prices.
+#' 
+#' The output of this script is stored as five seperate CSV files. These files
+#' are used to construct a database of winsored fertilizer and goods prices and 
+#' an output index. Finally, the output files will be used to create a complete
 
 setwd("c:/Users/morle001/Dropbox/Micro_IPOP")
 
@@ -124,7 +129,7 @@ plot.IO$seed.price[plot.IO$s4aq19 == "NO"] <- 0
 levels(plot.IO$seed.type) <- c(levels(plot.IO$seed.type), "None purchased")
 plot.IO$seed.type[plot.IO$ag4a_19 == "NO"] <- "None purchased"
 
-write.csv(plot.IO, "M:/cleaned_data/2008/plot_input_output.csv", row.names = FALSE)
+write.dta(plot.IO, "M:/cleaned_data/2008/plot_input_output.dta", version = 7L)
 
 # ``````````````````````````````````````````````````````````````````````````````````````````````````
 #' note that year 1 only asks for a single fertilizer and so each plot is entered only once, 
@@ -147,11 +152,8 @@ fert.comp$N_share[fert.comp$N_share == 0] <- NA
 
 fert.vars <- merge(fert.vars, select(fert.comp, fert.type, N_share, P_share, K_share), all.x = TRUE) 
 fert.vars <- mutate(fert.vars, N = fert.kg * (N_share/100),
-                    P = fert.kg * (P_share/100), K = fert.kg * (K_share/100),
-                    unit.price.kg = fert.price/fert.kg, unit.price.50kg = unit.price.kg*50,
-                    nit.price.kg = (100/N_share)*unit.price.kg) %>%
+                    P = fert.kg * (P_share/100), K = fert.kg * (K_share/100)) %>%
         select(hhid, plotnum, everything())
-fert.vars$year <- "2008"
 
 write.csv(fert.vars, "M:/cleaned_data/2008/fertilizer_variables.csv", row.names = FALSE)
 
@@ -160,4 +162,21 @@ write.csv(fert.vars, "M:/cleaned_data/2008/fertilizer_variables.csv", row.names 
 #' Meyres output section after winsoring. 
 
 
-write.csv(prices, "M:/cleaned_data/2008/price_variables.csv", row.names = FALSE)
+CQSECJ2 <- read.dta("./Data/Tanzania/2008_09/Stata/TZNPS1CMDTA_E/SEC_J2.dta",
+                    convert.factors = TRUE)
+prices <- select(CQSECJ2, region, itemname = itemid, unit = cj06meas, weight = cj06wght,
+                 price = cj06pri)
+levels(prices$unit) <- c("Kilograms", "Grams", "Litre", "Millilitre", "Pieces", NA)
+prices$price[prices$price == 0] <- NA
+prices$weight[prices$weight == 0] <- NA
+prices$price.unit <- with(prices,
+                          ifelse(unit == "Grams", price/(weight/1000),
+                                 ifelse (weight == "Kilograms", price/(weight),
+                                         ifelse(unit == "Litre", price/(weight),
+                                                ifelse(unit == "Millilitre", price/(weight/1000),
+                                                       ifelse(unit == "Pieces", price/(weight),
+                                                              price/weight))))))
+good <- complete.cases(prices)
+prices <- filter(prices, good) %>% select(region, itemname, price.unit)
+
+write.csv(prices, "M:/cleaned_data/2008/prices.csv", row.names = FALSE)

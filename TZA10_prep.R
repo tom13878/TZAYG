@@ -1,5 +1,12 @@
-#' script for cleaning the 
-
+#' script for cleaning the LSMS-ISA Tanzania 2010 database. The script is split
+#' into five section labelled A to E which clean and prepare data on household
+#' characteristics, input and output variables at the plot level, plot
+#' characteristics, fertilizer prices and information and foods prices.
+#' 
+#' The output of this script is stored as five seperate CSV files. These files
+#' are used to construct a database of winsored fertilizer and goods prices and 
+#' an output index. Finally, the output files will be used to create a complete
+#' 
 
 # 1. set working directory - may need to change this
 # setwd("D:\\Dijk158\\Dropbox\\Michiel research\\Micro_IPOP")
@@ -19,10 +26,7 @@ library(dplyr)
 source("M:/TZAYG/plus.R") 
 source("M:/TZAYG/missing.plot.R") 
 
-
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# B. Household level data - Create HH level indicators
+# A. Household level data - Create HH level indicators
 
 HQSECB <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_B.dta",
                    convert.factors = TRUE)
@@ -48,16 +52,6 @@ hh.char$schl[hh.char$schl == 1697] <- 1997
 hh.char$prioc[hh.char$prioc %in% c(5,6)] <- "Agriprime"
 hh.char$prioc[hh.char$prioc %in% c(1:4)] <- "Nonagriprime"
 
-# hh.char$hi.ed <- with(hh.char, 
-#                      ifelse(hh_c03=="No", 0,
-#                             ifelse(hh_c05 == "Yes", hh_b04 - hh_c04,(hh_b04-(2010-hh_c08))-hh_c04))) # assume 2010 is year age was asked
-# HH[which(HH$Hyeduc<0),]<-NA # set negative values to NA
-
-# Create HH indicators (age and educ head, size, capital, etc)
-# Table<-cbind(Freq=table(HH$Hyeduc), Cumul=cumsum(table(HH$Hyeduc)),relative=prop.table(table(HH$Hyeduc)))
-# HH[which(HH$Hyeduc<0),]<-NA # set negative values to NA 
-# HH$Hprioc<-factor(HH$Hprioc)
-
 # Compute capital stock per HH
 hh.cap <- ddply(AQSEC11, .(y2_hhid), summarize, cap.own = plus(ag11_01*ag11_02),
                 cap.rent = plus(ag11_07*ag11_09))
@@ -66,10 +60,9 @@ hh.plots <- ddply(AQSEC3A, .(y2_hhid), summarize, plots = sum(!is.na(plotnum)),
                   plot.missing = factor(missing.plot(zaocode)))
 
 hh.total <- left_join(hh.char, hh.cap) %>% left_join(hh.plots)
+write.csv(hh.total, "M:/cleaned_data/2010/household.csv", row.names = FALSE)
 
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# C. plot level input - output data
+# B. plot level input - output data
 
 AQSEC4A <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC4A.dta",
                     convert.factors = TRUE)
@@ -95,12 +88,9 @@ levels(plot.IO$seed.type) <- c(levels(plot.IO$seed.type), "None purchased")
 plot.IO$seed.type[plot.IO$ag4a_19 == "NO"] <- "None purchased"
 plot.IO <- select(plot.IO, -(ag4a_09:ag4a_19))
 
-# write.csv(plot.IO, "./Analysis/Cleaned_data/plot_IO_y2.csv", row.names = FALSE)
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# D. plot level indicators data
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
+write.dta(plot.IO, "M:/cleaned_data/2010/plot_input_output.dta", version = 7L)
+
+#' C.
 AQSEC2A <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC2A.dta",
                     convert.factors = TRUE)
 AQSEC3A <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
@@ -153,60 +143,77 @@ plot.vars$pest.kg[is.na(plot.vars$pest.kg)] <- 0
 plot.vars$fam.lab.days[is.na(plot.vars$fam.lab.days)] <- 0
 plot.vars$hir.lab.days[is.na(plot.vars$hir.lab.days)] <- 0
 
-write.csv(plot.vars, './Analysis/Cleaned_data/plot_vars_y2.csv' , row.names = FALSE)
+write.csv(plot.vars, "M:/cleaned_data/2010/plot_variables.csv", row.names = FALSE)
 
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# E. create a database of information on inorganic fertilizer variables.
-#    1. read in plot.vars dataframe which contains all the data on fertilizer.
-#    2. read in the fertilizer composition data
-#    3. calculate the important fertilizer price stuff and save in a new file.
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
+#' D. fertilizer variables are taken from agricultural questionnaire section 3A 
+#'    and used to produce a database of plots by fertilizer type and quantity
+#'    used of nitrogen per plot for use in the production function
 AQSEC3A <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
                     convert.factors = FALSE)
+s <- select(AQSEC3A, y2_hhid, plotnum, type1 = ag3a_46, type2 = ag3a_53)
+m <- melt(s, id = c('y2_hhid', 'plotnum'))
+m <- arrange(m, variable)
 
-fert.main <- AQSEC3A %>% 
-  transmute(y2_hhid, plotnum, fert.type = factor(ag3a_46,labels=c("DAP", "UREA", "TSP", "CAN", "SA",
-                                                                  "generic NPK (TZA)", "MRP")),
-            fert.kg = ag3a_47, fert.price = ag3a_49,
-            voucher = factor(ag3a_48, labels=c("YES", "NO")),
-            main.fert = factor(ifelse(is.na(fert.type), NA, "MAIN"))) %>%
-  arrange(fert.type)
+ty1 <- filter(m, variable == 'type1')
+ty2 <- filter(m, variable == 'type2')
 
-fert.second <- AQSEC3A %>% 
-  transmute(y2_hhid, plotnum, fert.type = factor(ag3a_53,labels=c("DAP", "UREA", "TSP", "CAN", "SA",
-                                                                  "generic NPK (TZA)", "MRP")),
-            fert.kg=ag3a_54, fert.price = ag3a_56, voucher = factor(ag3a_55, labels=c("YES", "NO")),
-            main.fert = factor(ifelse(is.na(fert.type), NA, "SECOND"))) %>%
-  arrange(fert.type)
+ty1j <- left_join(ty1, select(AQSEC3A, y2_hhid, plotnum, value = ag3a_46, fert.kg = ag3a_47))
+ty1j <- select(ty1j, y2_hhid, plotnum, type = value, fert.kg)
 
-fert.vars <- rbind(fert.main, fert.second)
-fert.vars$fert.price[fert.vars$fert.price == 0] <- NA
+ty2j <- left_join(ty2, select(AQSEC3A, y2_hhid, plotnum, value = ag3a_53, fert.kg = ag3a_54))
+ty2j <- select(ty2j, y2_hhid, plotnum, type = value, fert.kg)
 
-fert.comp <- read.xls("Data/Other/Fert_comp.xlsx", sheet = 2) %>% rename(fert.type = Fert_type2)
+tot <- rbind(ty1j, ty2j)
+
+# attach labels to fertilizer types
+tot <- transform(tot, type = factor(type, labels=c("DAP", "UREA", "TSP", "CAN", "SA",
+                                                   "generic NPK (TZA)", "MRP")))
+# read in fertilizer composition table
+fert.comp <- read.xls("Data/Other/Fert_comp.xlsx", sheet = 2) %>% rename(type = Fert_type2)
 fert.comp$P_share <- as.numeric(fert.comp$P_share)
 fert.comp$K_share <- as.numeric(fert.comp$K_share)
 fert.comp$N_share <- as.numeric(fert.comp$N_share)
-fert.comp$N_share[fert.comp$N_share == 0] <- NA
-fert.vars <- merge(fert.vars, select(fert.comp, fert.type, N_share, P_share, K_share), all.x = TRUE) 
-fert.vars <- mutate(fert.vars, N = fert.kg * (N_share/100),
-                    P = fert.kg * (P_share/100), K = fert.kg * (K_share/100),
-                    unit.price.kg = fert.price/fert.kg, unit.price.50kg = unit.price.kg*50,
-                    nit.price.kg = (100/N_share)*unit.price.kg) %>%
-        select(y2_hhid, plotnum, everything())
 
-fert.vars$year <- "2010"
-write.csv(fert.vars, "./Analysis/Cleaned_data/fert_vars_y2.csv", row.names = FALSE)
+# create fertilizer variables
+fert.vars <- merge(tot, select(fert.comp, type, N_share, P_share, K_share), all.x = TRUE) %>%
+        mutate(N = fert.kg * (N_share/100), P = fert.kg * (P_share/100), K = fert.kg * (K_share/100)) %>%
+        select(y2_hhid, plotnum, everything()) %>%
+        ddply(.(y2_hhid, plotnum), summarize,
+              nitrogen.kg = sum(N, na.rm = TRUE),
+              phosphorous.kg = sum(P, na.rm = TRUE),
+              potassium.kg = sum(K, na.rm = TRUE)) %>%
+        arrange(desc(nitrogen.kg))
 
+write.csv(fert.vars, "M:/cleaned_data/2010/fertilizer_variables.csv", row.names = FALSE)
 
+#' E. read in the community consumer prices from the community questionnaire and
+#'    return as output a cleaned set of prices that can be used to calculate the
+#'    Liu meyers index
 
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# F. price data 
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-# ``````````````````````````````````````````````````````````````````````````````````````````````````
-
-
-# write.csv(prices, "./Analysis/Cleaned_Data/prices_y2.csv", row.names = FALSE)
+CQSECCJ <- read.dta("Data/Tanzania/2010_11/Stata/TZNPS2COMDTA/COMSEC_CJ.dta",
+                    convert.factors = TRUE)
+prices <- select(CQSECCJ, region = id_01, itemname, unit1 = cm_j01a, weight1 = cm_j01b,
+                 price1 = cm_j01c, unit2 = cm_j02a, weight2 = cm_j02b, price2 = cm_j02c)
+prices$price1[prices$price1 == 0] <- NA
+prices$weight1[prices$weight1 == 0] <- NA
+prices$price2[prices$price2 == 0] <- NA
+prices$weight2[prices$weight2 == 0] <- NA
+prices$price.loc <- with(prices,
+                         ifelse(unit1 == "Grams", price1/(weight1/1000),
+                                ifelse (unit1 == "Kilograms", price1/(weight1),
+                                        ifelse(unit1 == "Litre", price1/(weight1),
+                                               ifelse(unit1 == "Millilitre", price1/(weight1/1000),
+                                                      ifelse(unit1 == "Pieces", price1/(weight1),
+                                                             price1/weight1))))))
+prices$price.dis <- with(prices,
+                         ifelse(unit2 == "Grams", price2/(weight2/1000),
+                                ifelse (unit2 == "Kilograms", price2/(weight2),
+                                        ifelse(unit2 == "Litre", price2/(weight2),
+                                               ifelse(unit2 == "Millilitre", price2/(weight2/1000),
+                                                      ifelse(unit2 == "Pieces", price2/(weight2),
+                                                             price2/weight2))))))
+prices <- select(prices, region, itemname, price.loc, price.dis)
+good <- !(is.na(prices$price.loc) & is.na(prices$price.dis))
+prices <- prices[good, ]
+write.csv(prices, "M:/cleaned_data/2010/prices.csv", row.names = FALSE)
 

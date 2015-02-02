@@ -2,7 +2,6 @@
 #' the databases for the two years and the output is a larger database made from
 #' stacking year 1 on top of year 2. 
 #' 
-#' Still need to change spellings between years for regions
 
 setwd('M:/cleaned_data')
 library(dplyr)
@@ -30,5 +29,5 @@ database.2010 <- select(database.2010, hhid, plotnum, region, everything())
 
 database.final <- rbind(database.2008, database.2010)
 
-write.csv('./', row.name = FALSE)
+write.csv(database.final, './database_final.csv', row.names = FALSE)
 

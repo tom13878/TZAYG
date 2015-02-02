@@ -28,8 +28,16 @@ database.2010 <- left_join(database.2010, hh.total)
 
 database.2010$year <- 2010
 
-# 5. save as a final database
+# 5. names of region are different across year 1 and year2, recode
+database.2010$region[database.2010$region == 'Kaskazini Unguja'] <- 'KASKAZINI UNGUJA'
+database.2010$region[database.2010$region == 'Dar es Salaam'] <- 'Dar es salaam'
+database.2010$region[database.2010$region == 'Kusini Pemba'] <- 'KUSINI PEMBA'
+database.2010$region[database.2010$region == 'Mjini Magharibi'] <- 'MJINI/MAGHARIBI UNGUJA'
+database.2010$region[database.2010$region == 'Kusini Unguja'] <- 'KUSINI UNGUJA'
+database.2010$region[database.2010$region == 'Kaskazini Pemba'] <- 'KASKAZINI PEMBA'
 
-write.csv(database.2010, "./database_2010.csv", row.names = FALSE )
+# 6. save as a final database
+
+write.csv(database.2010, "./database_2010.csv", row.names = FALSE)
 
 

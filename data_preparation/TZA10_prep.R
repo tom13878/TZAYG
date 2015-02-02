@@ -165,11 +165,11 @@ m <- arrange(m, variable)
 ty1 <- filter(m, variable == 'type1')
 ty2 <- filter(m, variable == 'type2')
 
-ty1j <- left_join(ty1, select(AQSEC3A, y2_hhid, plotnum, value = ag3a_46, fert.kg = ag3a_47))
-ty1j <- select(ty1j, y2_hhid, plotnum, type = value, fert.kg)
+ty1j <- left_join(ty1, select(AQSEC3A, y2_hhid, plotnum, value = ag3a_46, fert.kg = ag3a_47, voucher = ag3a_48))
+ty1j <- select(ty1j, y2_hhid, plotnum, type = value, fert.kg, voucher)
 
-ty2j <- left_join(ty2, select(AQSEC3A, y2_hhid, plotnum, value = ag3a_53, fert.kg = ag3a_54))
-ty2j <- select(ty2j, y2_hhid, plotnum, type = value, fert.kg)
+ty2j <- left_join(ty2, select(AQSEC3A, y2_hhid, plotnum, value = ag3a_53, fert.kg = ag3a_54, voucher = ag3a_48))
+ty2j <- select(ty2j, y2_hhid, plotnum, type = value, fert.kg, voucher)
 
 tot <- rbind(ty1j, ty2j)
 
@@ -192,6 +192,8 @@ fert.vars <- merge(tot, select(fert.comp, type, N_share, P_share, K_share), all.
               potassium.kg = sum(K, na.rm = TRUE)) %>%
         arrange(desc(nitrogen.kg))
 
+# merge back to get voucher variable
+fert.vars <- left_join(fert.vars, unique(select(tot, y2_hhid, plotnum, voucher)))
 write.csv(fert.vars, "M:/cleaned_data/2010/fertilizer_variables.csv", row.names = FALSE)
 
 #' E. read in the community consumer prices from the community questionnaire and

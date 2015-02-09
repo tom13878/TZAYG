@@ -49,7 +49,7 @@ winsor3 <- function(df, cols, multiple = 3){
 }
 
 trim1 <- function(df, col){
-        q <- quantile(df[, col], probs = c(0.01, 0.99), na.rm = TRUE)
+        q <- quantile(df[, col], probs = c(0.05, 0.95), na.rm = TRUE)
         ll <- q[1]
         ul <- q[2]
         df[,col][df[,col] < ll | df[,col] > ul] <- NA
@@ -58,7 +58,7 @@ trim1 <- function(df, col){
 
 trim2 <- function(df, cols){
         for(i in cols){
-                q <- quantile(df[, i], probs = c(0.01, 0.99), na.rm = TRUE)
+                q <- quantile(df[, i], probs = c(0.05, 0.95), na.rm = TRUE)
                 ll <- q[1]; print(ll)
                 ul <- q[2]; print(ul)
                 df[,i][df[,i] < ll | df[,i] > ul] <- NA

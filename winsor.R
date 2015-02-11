@@ -51,12 +51,14 @@ winsor3 <- function(df, cols, multiple = 3){
 winsor4 <- function(df, cols, fraction = 0.01) {
 # the default fraction is 0.01 and wisors at the 99th percentile. 
 # this can be used in conjunction with winsor1 which winsors at the 95 percentile
+# I have also used this function to avoid zero values
         if (length(fraction) != 1 || fraction < 0 || fraction > 0.1) {
                 stop('bad choice of fraction!!')
         } 
         
         for(i in cols) {
-                lim <- quantile(df[, i], probs = 1-fraction, na.rm = TRUE)
+                notzero <- !(df[, i] == 0)
+                lim <- quantile(df[notzero, i], probs = 1-fraction, na.rm = TRUE)
                 df[, i][df[, i] > lim] <- lim
         } 
         df 

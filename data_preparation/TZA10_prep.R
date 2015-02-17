@@ -42,7 +42,7 @@ AQSEC3A <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
 hh.char <- left_join(HQSECC, select(HQSECB, y2_hhid:hh_b05)) %>%
   left_join(select(HQSECE1, y2_hhid, indidy2, hh_e06)) %>%
   ddply(.(y2_hhid), transform, hh.size=length(indidy2)) %>%
-  filter(hh_b05 == "HEAD") %>% transmute(y2_hhid,
+  filter(hh_b05 == "HEAD") %>% transmute(y2_hhid, hh_c04, hh_b03_1,
                                          soh = factor(hh_b02), aoh = hh_b04,
                                          schl = hh_c08, hh.size)
 
@@ -50,6 +50,10 @@ hh.char <- left_join(HQSECC, select(HQSECB, y2_hhid:hh_b05)) %>%
 hh.char$schl[hh.char$schl == 9999] <- NA # set year of leaving school to NA if it is unknown (9999)
 hh.char$schl[hh.char$schl == 1697] <- 1997
 
+hh.char$educ <- ifelse(complete.cases(hh.char$hh_c04, hh.char$hh_b03_1, hh.char$schl),
+                       hh.char$schl - (hh.char$hh_b03_1 + hh.char$hh_c04), NA)
+
+table(!is.na(hh.char$schl))
 # Compute capital stock per HH
 hh.cap <- ddply(AQSEC11, .(y2_hhid), summarize, own.sh = plus(ag11_01*ag11_02),
                 rent.sh = plus(ag11_07*ag11_09))
@@ -165,11 +169,11 @@ m <- arrange(m, variable)
 ty1 <- filter(m, variable == 'type1')
 ty2 <- filter(m, variable == 'type2')
 
-ty1j <- left_join(ty1, select(AQSEC3A, y2_hhid, plotnum, value = ag3a_46, fert.kg = ag3a_47, voucher = ag3a_48))
-ty1j <- select(ty1j, y2_hhid, plotnum, type = value, fert.kg, voucher)
+ty1j <- left_join(ty1, select(AQSEC3A, y2_hhid, plotnum, fert = ag3a_52, value = ag3a_46, fert.kg = ag3a_47, voucher = ag3a_48))
+ty1j <- select(ty1j, y2_hhid, plotnum, type = value, fert.kg, voucher, fert)
 
-ty2j <- left_join(ty2, select(AQSEC3A, y2_hhid, plotnum, value = ag3a_53, fert.kg = ag3a_54, voucher = ag3a_48))
-ty2j <- select(ty2j, y2_hhid, plotnum, type = value, fert.kg, voucher)
+ty2j <- left_join(ty2, select(AQSEC3A, y2_hhid, plotnum, fert = ag3a_52, value = ag3a_53, fert.kg = ag3a_54, voucher = ag3a_48))
+ty2j <- select(ty2j, y2_hhid, plotnum, type = value, fert.kg, voucher, fert)
 
 tot <- rbind(ty1j, ty2j)
 
@@ -193,7 +197,7 @@ fert.vars <- merge(tot, select(fert.comp, type, N_share, P_share, K_share), all.
         arrange(desc(nitrogen.kg))
 
 # merge back to get voucher variable
-fert.vars <- left_join(fert.vars, unique(select(tot, y2_hhid, plotnum, voucher)))
+fert.vars <- left_join(fert.vars, unique(select(tot, y2_hhid, plotnum, voucher, fert)))
 write.csv(fert.vars, "M:/cleaned_data/2010/fertilizer_variables.csv", row.names = FALSE)
 
 #' E. read in the community consumer prices from the community questionnaire and

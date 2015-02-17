@@ -1,13 +1,4 @@
-#' analysis of panel set constructed from tanzania household survey from 2008
-#' and 2010 - no regressions here, just a good look at the data. For regressions
-#' look at analysis2.R. Structure of the document is as follows: first look at
-#' some tables of key variables. Second look at some ANOVA stuff between 
-#' differnt groups in the data (maize producers vs non-maize producers), and
-#' finally some plots of key variables. The idea is to inform the analysis 
-#' later on.
-#' 
-#' Make plots of all variables that are likely to be used in the regressions:
-#' output, nitrogen, phosphorous, age, sex, area, capital, labour, etc
+#' analysis of 2010 data from world bank surveys. 
 
 setwd('M:/cleaned_data')
 

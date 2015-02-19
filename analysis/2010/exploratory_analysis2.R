@@ -20,7 +20,7 @@ db0$y2_hhid <- as.character(db0$y2_hhid)
 # sum them. Also change the seed type variable. 
 db0$own.sh[is.na(db0$own.sh)] <- 0
 db0$own.sh[is.na(db0$rent.sh)] <- 0
-db0$seed.type <- revalue(db1$seed.type, c('None purchased' = 'TRADITIONAL'))
+db0$seed.type <- revalue(db0$seed.type, c('None purchased' = 'TRADITIONAL'))
 
 db1 <- mutate(db0, tot.cap.sh = own.sh + rent.sh) %>%
         ddply(.(y2_hhid), transform, total.area = sum(area.gps, na.rm = TRUE))
@@ -32,6 +32,17 @@ db1 <- mutate(db1, yield = output.kg.new/area.gps,
               labF = fam.lab.days/area.gps,
               labH = hir.lab.days/area.gps,
               pest = pest.kg/area.gps)
+
+# ---------------------
+# Table pre winsoring
+# ---------------------
+
+by_region1 <- group_by(db1, region) %>% summarise(
+        no.farmers = length(unique(y2_hhid)),
+        no.plots = length(unique(paste0(y2_hhid, plotnum))),
+        avg.yield = round(mean(yield, na.rm = TRUE), 2),
+        avg.nitrogen = round(mean(nitrogen, na.rm = TRUE), 2)
+)
 
 # some quick histograms reveal that there are a lot of outliers that are clearly
 # not a good reflection of the data. One strategy is to winsor values of key
@@ -121,7 +132,7 @@ db3 <- select(db2, y2_hhid, plotnum, region, yield, nitrogen, cap, labF, labH,
               crop.count, maize.share, seed.type, inter.crop, org.fert,
               irrigation, slope)
 
-rm(db0, db2, x)
+rm(db0, db2)
 
 # make a maize.belt variable based on the regions that have the highest maize
 # yields
@@ -174,6 +185,22 @@ g3 <- ggplot(subset(db3, !(nitrogen == 0)), aes(x = nitrogen, y = yield)) +
 
 g4 <- ggplot(subset(db3, !(nitrogen == 0)), aes(x = nitrogen, y = yield)) +
         geom_point() + theme_bw() + facet_grid(. ~ zone)
+
+# ------------------------------
+# make some nice tables - post winsoring - pre regression
+# ------------------------------
+
+by_region <- group_by(db3, region) %>% summarise(
+        no.farmers = length(unique(y2_hhid)),
+        no.plots = length(unique(paste0(y2_hhid, plotnum))),
+        avg.yield = round(mean(yield, na.rm = TRUE), 2),
+        avg.nitrogen = round(mean(nitrogen, na.rm = TRUE), 2),
+        f = round((length(unique(y2_hhid[!(nitrogen == 0)]))/no.farmers)*100, 1),
+        p = round(
+                (length
+                 (unique(paste0(y2_hhid, plotnum)[!(nitrogen == 0)]))/no.plots)*100,
+                1)
+        )
 
 # -------------------------------
 # create new variables so that it is possible to take logs for analysis

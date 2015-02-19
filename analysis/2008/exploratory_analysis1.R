@@ -125,3 +125,20 @@ db3$zone[db3$region %in% c("KASKAZINI UNGUJA", "KUSINI UNGUJA", "MJINI/MAGHARIBI
 
 # Use the 2008 data to construct some tables to include in the paper. The data 
 # is to discrete to be used for a proper regression analysis!
+# also go back and check over this code. Problem with NA values and subsetting
+
+# ------------------------
+# descriptive statistics by regions
+# ------------------------
+
+by_region <- group_by(db3, region) %>% summarise(
+        no.farmers = length(unique(hhid)),
+        no.plots = length(unique(paste0(hhid, plotnum))),
+        avg.yield = round(mean(yield, na.rm = TRUE), 2),
+        avg.nitrogen = round(mean(nitrogen, na.rm = TRUE), 2),
+        f = round((length(unique(hhid[!(is.na(nitrogen))]))/no.farmers)*100, 1),
+        p = round(
+                (length
+                 (unique(paste0(hhid, plotnum)[!(is.na(nitrogen))]))/no.plots)*100,
+                1)
+)

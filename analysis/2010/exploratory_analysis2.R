@@ -148,10 +148,10 @@ db3$zone[db3$region %in% c("Shinyanga","Kigoma", "Tabora")] <- "Western"
 db3$zone[db3$region %in% c("Arusha","Kilimanjaro", "Manyara", "Tanga")] <- "Northern"
 db3$zone[db3$region %in% c("Singida","Dodoma")] <- "Central"
 db3$zone[db3$region %in% c("Rukwa", "Mbeya","Iringa")] <- "Southern Highlands"
-db3$zone[db3$region %in% c("Pwani","Morogoro", "Dar es Salaam")] <- "Eastern"
+db3$zone[db3$region %in% c("Pwani","Morogoro", "Dar es salaam")] <- "Eastern"
 db3$zone[db3$region %in% c("Lindi","Ruvuma", "Mtwara")] <- "Southern"
-db3$zone[db3$region %in% c("Kaskazini Unguja", "Kusini Unguja", "Mjini Magharibi",
-                           "Kaskazini Pemba", "Kusini Pemba")] <- "Zanzibar"
+db3$zone[db3$region %in% c("KASKAZINI UNGUJA", "KUSINI UNGUJA", "MJINI/MAGHARIBI UNGUJA",
+                           "KASKAZINI PEMBA", "KUSINI PEMBA")] <- "Zanzibar"
 
 # correlation matrix using
 m<-cor(db3[, whichNumerics(db3)], use="pairwise.complete.obs")
@@ -188,6 +188,7 @@ g4 <- ggplot(subset(db3, !(nitrogen == 0)), aes(x = nitrogen, y = yield)) +
 
 # ------------------------------
 # make some nice tables - post winsoring - pre regression
+# split by zone and by region
 # ------------------------------
 
 by_region <- group_by(db3, region) %>% summarise(
@@ -201,6 +202,18 @@ by_region <- group_by(db3, region) %>% summarise(
                  (unique(paste0(y2_hhid, plotnum)[!(nitrogen == 0)]))/no.plots)*100,
                 1)
         )
+
+by_zone <- group_by(db3, zone) %>% summarise(
+        no.farmers = length(unique(y2_hhid)),
+        no.plots = length(unique(paste0(y2_hhid, plotnum))),
+        avg.yield = round(mean(yield, na.rm = TRUE), 2),
+        avg.nitrogen = round(mean(nitrogen, na.rm = TRUE), 2),
+        f = round((length(unique(y2_hhid[!(nitrogen == 0)]))/no.farmers)*100, 1),
+        p = round(
+                (length
+                 (unique(paste0(y2_hhid, plotnum)[!(nitrogen == 0)]))/no.plots)*100,
+                1)
+)
 
 # -------------------------------
 # create new variables so that it is possible to take logs for analysis

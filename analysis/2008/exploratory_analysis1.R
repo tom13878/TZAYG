@@ -62,12 +62,9 @@ db2 <- filter(db2, crop.count < 7, !cash.crop, maize.share >= 25)
 
 # there are clear outliers in the data so restrict attention to a 'feasible'
 # range of values. GYGA indicates yield potential is 10000kg/ha, and fertilizer
-# use of greater than 700kg/ha seems ridiculous. There is a code problem here
-# with NA values. When subsetting NA values for Nitrogen drop out for every
-# variable in the dataset. Hence nitrogen values are only compared for those
-# values that are not NA
-db2 <- db2[db2$nitrogen[!is.na(db2$nitrogen)] <= 700, ] 
-db2 <- db2[db2$yield <= 8000,]
+# use of greater than 700kg/ha seems ridiculous. 
+
+db2 <- db2[db2$nitrogen < 700 & db2$yield < 8000,]
 
 # inspection of plots indicates that there are still outliers in the data in 
 # particular, because we have discrete measures of nitrogen (because fertilizer)
@@ -107,7 +104,7 @@ g3 <- ggplot(subset(db2, !(nitrogen == 0)),
 db3 <- select(db2, hhid, plotnum, region, yield, nitrogen, cap, labF, labH,
               soil, soilq,soh, aoh, beans, pest, area.gps, total.area, org.fert,
               crop.count, maize.share, seed.type, inter.crop, org.fert,
-              irrigation, slope)
+              irrigation, slope, area.gps)
 
 # make a maize.belt variable based on the regions that have the highest maize
 # yields
@@ -135,6 +132,7 @@ db3$zone[db3$region %in% c("KASKAZINI UNGUJA", "KUSINI UNGUJA", "MJINI/MAGHARIBI
 # descriptive statistics: by region and by zone
 # ------------------------
 
+# table by region
 by_region <- group_by(db3, region) %>% summarise(
         no.farmers = length(unique(hhid)),
         no.plots = length(unique(paste0(hhid, plotnum))),
@@ -149,6 +147,7 @@ by_region <- group_by(db3, region) %>% summarise(
 
 by_region$region <- as.character(by_region$region)
 
+# table by zone
 by_zone <- group_by(db3, zone) %>% summarise(
         no.farmers = length(unique(hhid)),
         no.plots = length(unique(paste0(hhid, plotnum))),
@@ -163,3 +162,11 @@ by_zone <- group_by(db3, zone) %>% summarise(
 # output for LaTeX tables
 print(LaTeX_out(by_region))
 print(LaTeX_out(by_zone))
+
+# --------------------
+# Analyse only plots for which we have an area.gps measurement
+# -------------------
+
+db4 <- subset(db3, !(is.na(area.gps)))
+
+ggplot(db4, aes(x = yield)) + geom_histogram(binwidth = 30)

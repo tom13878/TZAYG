@@ -8,6 +8,11 @@
 #' Each section can be run seperately
 #' provided that that all the packages 
 #' and functions needed are called first
+#' 
+#' Unlike earlier preparation files, data
+#' on area is kept seperate. This is a
+#' result of missing area measurments
+#' which are imputed in another file.
 # -------------------------------------
 
 # set working directory and install packages
@@ -58,11 +63,24 @@ HH.total <- left_join( HH, cap )
 
 # agricultural questionnaire section 3A contains a lot of plot specific 
 # information including fertilizer use.
-AG3A <- read.spss('AG_SEC_3A.SAV', to.data.frame = TRUE)
+AG3A <- read.spss( 'AG_SEC_3A.SAV', to.data.frame=TRUE )
 
 # the plotnumber variable in AG3A has whitespace that needs to be removed
-gsub(" ", "", "M1 ", fixed = TRUE) # returns "M1"
-AG3A$plotnum <- gsub(" ", "", AG3A$plotnum, fixed = TRUE)
+gsub( " ", "", "M1 ", fixed=TRUE ) # returns "M1"
+AG3A$plotnum <- gsub( " ", "", AG3A$plotnum, fixed=TRUE )
+
+# calculate the total labour days for hired and family labour. This requires
+# manipulation because of the way the way values were entered into the survey.
+# see agricultural questionnaire Qs 72 and 74 for details.
+lab <- select( AG3A, y3_hhid, plotnum, ag3a_72_id1:ag3a_74_16 )
+bad <- grep( "ag3a_72_id", names( lab ) )
+lab <- lab[, -bad]
+bad <- names( lab )[( length( lab )-15 ):length( lab )][seq( from=4, to=16, by=4 )]
+lab <- lab[, -which( names( lab ) %in% bad )]
+
+lab <- transmute( lab, y3_hhid, plotnum,
+                  fam.lab.days=rowSums( lab[, 3:30], na.rm=TRUE ),
+                  hir.lab.days=rowSums( lab[, 32:ncol( lab )], na.rm=TRUE ) )
 
 # Select variables that are important for analysis
 # fallow has 0 if plot has never been left fallow and 98 if the respondent does
@@ -90,7 +108,7 @@ plot.vars <- mutate(plot.vars,
 
 # select only plot key and fertilizer type - melt the data frame so that the
 # observational unit because fertilizer type per plot
-s <- select(fert.vars, y3_hhid, plotnum, inorg.type1, inorg.type2)
+s <- select(plot.vars, y3_hhid, plotnum, inorg.type1, inorg.type2)
 m <- melt(s, id = c('y3_hhid', 'plotnum')) 
 
 # filter m for eachtype of fertilizer and join this up with the quantity
@@ -117,18 +135,15 @@ fert.vars <- left_join( tot, select( fert.comp, type, N_share, P_share, K_share 
 fert.vars <- mutate( fert.vars, N = quantity * (N_share/100),
                      P = quantity * (P_share/100), K = quantity * (K_share/100) )
 
+# calculate the sum of nitrogen used on each plot 
 fert.vars <- group_by( fert.vars, y3_hhid, plotnum ) %>%
         summarise( nitrogen.kg = sum( N, na.rm = TRUE ),
                   phosphorous.kg = sum( P, na.rm = TRUE ),
                   potassium.kg = sum( K, na.rm = TRUE ) )
 
-# get values of fertilizer for each plot split into components.
-fert.vars <- select(fert.vars, y3_hhid, plotnum, everything()) %>% 
-        ddply(.(y3_hhid, plotnum), summarize,
-              nitrogen.kg = sum(N, na.rm = TRUE),
-              phosphorous.kg = sum(P, na.rm = TRUE),
-              potassium.kg = sum(K, na.rm = TRUE))
-
 # join fertilizer information with other important variables
-plot.vars <- left_join(plot.vars, fert.vars)
+plot.vars <- left_join( plot.vars, fert.vars ) %>% left_join( lab )
 
+# -------------------------------------
+# consumer prices of foodstuffs
+# -------------------------------------

@@ -93,8 +93,6 @@ AG3A_vars <- select(AG3A, y3_hhid, plotnum, soil = ag3a_10, soilq = ag3a_11,
                voucher2 = ag3a_57, pest = ag3a_60, pestQ = ag3a_62_1,
                pestU = ag3a_62_2, short.rain = ag3a_81, short.rain.crop = ag3a_82)
 
-# AG3A_vars <- mutate(AG3A_vars, r)
-
 # calcualte the number of plots per household.
 numberPlots <- ddply(select(AG3A, y3_hhid, plotnum), .(y3_hhid), summarize,
                      plots = sum(!is.na(plotnum)))

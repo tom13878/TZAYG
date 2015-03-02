@@ -26,6 +26,10 @@ AG2A <- select(AG2A, y3_hhid, plotnum, area.est = ag2a_04, area.gps = ag2a_09)
 # read in agricultural questionnaire section 3 A
 AG3A <- read.spss('AG_SEC_3A.SAV', to.data.frame = TRUE)
 
+# the plotnumber variable in AG3A has whitespace that needs to be removed
+gsub(" ", "", "M1 ", fixed = TRUE) # returns "M1"
+AG3A$plotnum <- gsub(" ", "", AG3A$plotnum, fixed = TRUE)
+
 # still to add household and hired labour
 AG3A <- select(AG3A, y3_hhid, plotnum, soil = ag3a_10, soilq = ag3a_11,
                erosion = ag3a_13, slope = ag3a_17, irrig = ag3a_18,
@@ -37,7 +41,7 @@ AG3A <- select(AG3A, y3_hhid, plotnum, soil = ag3a_10, soilq = ag3a_11,
                short.rain = ag3a_81, short.rain.crop = ag3a_82)
 
 # read in agricultural questionnaire section 4 A
-AG4A <- read.spss('AG_SEC_4A.SAV', to.data.frame = TRUE)
+AG4A <- read.spss( 'AG_SEC_4A.SAV', to.data.frame = TRUE )
 
 # input and output variables
 AG4A <- select(AG4A, y3_hhid, plotnum, zaocode, full.area = ag4a_01,
@@ -96,14 +100,14 @@ plot.IO <- left_join(fert.vars, AG3A)
 # are.gps, maize output and fertilizer
 #-----------------------------------
 
-setkey(AG4A, zaocode)
-maize <- AG4A['MAIZE',]
-maize_area <- left_join(maize,plot.IO)
-maize_area_fert <- left_join(maize_area, plot.IO)
+# setkey(AG4A, zaocode)
+# maize <- AG4A['MAIZE',]
+# maize_area <- left_join(maize,plot.IO)
+# maize_area_fert <- left_join(maize_area, plot.IO)
 
-keycols <- c("y3_hhid", "plotnum")
-setkeyv(fert.vars, keycols)
-tables()
+# keycols <- c("y3_hhid", "plotnum")
+# setkeyv(fert.vars, keycols)
+# tables()
 
 # for some reason merging is not working - manually checking variables
 x <- select(plot.IO, y3_hhid, plotnum, nitrogen.kg)
@@ -115,10 +119,3 @@ y2 <- y[y$y3_hhid %in% x2$y3_hhid, ]
 
 x2y2 <- left_join(x2, y2)
 hist(x2$nitrogen.kg, col = 'grey', border = "white")
-
-# try making a new plot id variable
-x2$plotid <- paste(x2$y3_hhid, x2$plotnum, sep = "")
-y2$plotid <- paste(y2$y3_hhid, y2$plotnum, sep = "")
-
-# looks like there is whitespace in the plotnum variable like this "M1 " rather
-# than "M1"

@@ -49,7 +49,7 @@ cap <- group_by( cap, y2_hhid ) %>%
 
 HH_total <- left_join( HH, cap )
 
-# write.csv( HH_total, "M:/cleaned_data/2010/HH_total_w2.csv", row.names=FALSE )
+write.csv( HH_total, "M:/TZAYG/data/2010/HH_total_w2.csv", row.names=FALSE )
 
 # B. plot level input - output data
 
@@ -65,12 +65,12 @@ plot.IO <- transmute( AG4A, y2_hhid, plotnum, zaocode=factor( zaocode,
                       seed_sh=ag4a_21, output_kg=ag4a_15, output_sh=ag4a_16 )
                      
 
-# write.csv( plot.IO, "M:/cleaned_data/2010/plot_output_w2.csv", row.names=FALSE )
+write.csv( plot.IO, "M:/TZAYG/data/2010/plot_output_w2.csv", row.names=FALSE )
 
 #' C. area variables
 areas <- read.dta( './Data/Plot_size/areas_tza_y2_imputed.dta')
 areas <- select( areas, y2_hhid=case_id, plotnum, area_est=area_sr_orig, area_gps, area_gps_imputed=area_gps_mi_50 )
-# write.csv(areas, "M:/cleaned_data/2012/areas_w2.csv", row.names=FALSE)
+write.csv(areas, "M:/TZAYG/data/2010/areas_w2.csv", row.names=FALSE)
 
 #' D. plot variables
 AG3A <- read.dta( "./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
@@ -149,7 +149,7 @@ fert_vars <- group_by( fert_vars, y2_hhid, plotnum ) %>%
 # join fertilizer information with other important variables
 plot_vars <- left_join( plot_vars, fert_vars ) %>% left_join( lab )
 
-# write.csv(plot_vars, "M:/cleaned_data/2010/plot_variables_w2.csv", row.names=FALSE)
+write.csv(plot_vars, "M:/TZAYG/data/2010/plot_variables_w2.csv", row.names=FALSE)
      
 
 #' E. read in the community consumer prices from the community questionnaire and
@@ -182,5 +182,5 @@ prices <- select(prices, region, itemname, price.loc, price.dis)
 good <- !(is.na(prices$price.loc) & is.na(prices$price.dis))
 prices <- prices[good, ]
 
-# write.csv(prices, "M:/cleaned_data/2010/prices_w2.csv", row.names = FALSE)
+write.csv(prices, "M:/TZAYG/data/2010/prices_w2.csv", row.names = FALSE)
 

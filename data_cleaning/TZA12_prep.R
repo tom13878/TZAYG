@@ -61,21 +61,19 @@ cap <- group_by( cap, y3_hhid ) %>%
 # join together information on household characteristics and capital
 HH_total <- left_join( HH, cap )
 
-# write to file
-# write.csv(HH_total, "M:/cleaned_data/HH_total_w3.csv", row.names=FALSE)
+write.csv(HH_total, "M:/TZAYG/data/2012/HH_total_w3.csv", row.names=FALSE)
 
 # ------------------------------------
 # plot output and harvest details
 # ------------------------------------
 
-filepath <- "c:/Users/morle001/Dropbox/Micro_IPOP/Data/Tanzania/2010_11/Other/CropCodes.xlsx"
 AG4A <- read.spss( 'AG_SEC_4A.SAV', to.data.frame = TRUE )
 # input and output variables
 plot.IO <- transmute( AG4A, y3_hhid, plotnum, zaocode, total_plot=ag4a_01,
                inter_crop=ag4a_04, seed_type=ag4a_08, seed_sh=ag4a_12,
                output_kg=ag4a_28, output_sh=ag4a_29 )
 
-# write.csv(plot.IO, "M:/cleaned_data/2012/plot_output_w3.csv", row.names=FALSE)
+write.csv(plot.IO, "M:/TZAYG/data/2012/plot_output_w3.csv", row.names=FALSE)
 
 # -------------------------------------
 # plot level variables
@@ -169,7 +167,7 @@ fert.vars <- group_by( fert.vars, y3_hhid, plotnum ) %>%
 # join fertilizer information with other important variables
 plot.vars <- left_join( plot.vars, fert.vars ) %>% left_join( lab )
 
-# write.csv(plot.vars, "M:/cleaned_data/2012/plot_variables_w3.csv", row.names=FALSE)
+write.csv(plot.vars, "M:/TZAYG/data/2012/plot_variables_w3.csv", row.names=FALSE)
 
 # -------------------------------------
 # consumer prices of foodstuffs
@@ -224,5 +222,4 @@ prices <- prices[good, ]
 x <- strsplit( as.character(prices$item_name) , "  " )
 prices$item_name <- factor( sapply( x, function( elt ) return( elt[[1]] ) ) )
 
-# write everything to a CSV file to use later
-# write.csv( prices, "M:/cleaned_data/2012/prices_w3.csv", row.names = FALSE )
+write.csv( prices, "M:/TZAYG/data/2012/prices_w3.csv", row.names = FALSE )

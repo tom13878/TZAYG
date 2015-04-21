@@ -26,7 +26,8 @@ library( gdata )
 library( plyr )
 library( dplyr )
 
-source( "M:/TZAYG/plus.R" ) 
+source( "M:/TZAYG/functions/plus.R" ) 
+
 # -------------------------------------
 # household data
 # -------------------------------------
@@ -34,42 +35,47 @@ source( "M:/TZAYG/plus.R" )
 # get basic infomation from the household survey: variable indidy3 is the
 # identification number of each individual in the household. Only information
 # on the HEAD of the household (who is assumed to be the plot manager) is
-# required
+# required for later analysis
 HHB <- read.spss( 'HH_SEC_B.SAV', to.data.frame = TRUE )
-HH <- select( HHB, y3_hhid, indidy3, sex = hh_b02, age = hh_b04, status = hh_b05 )
-HH <- ddply( HH, .( y3_hhid ), transform, hh.size=length( indidy3 ) ) 
+HH <- select( HHB, y3_hhid, y2_hhid, indidy3, sex = hh_b02, age = hh_b04, status = hh_b05 )
+by_hhid <- group_by( HH, y3_hhid ) %>% summarise( hh_size =length( indidy3 ) )
 HH <- filter( HH, status == "HEAD" )
+HH <- left_join( select( HH, -indidy3, -status ), by_hhid )
 
 # Get a variable for whether the household is in a rural area or not
 HHA <- read.spss( 'HH_SEC_A.SAV', to.data.frame = TRUE )
 rural_weight <- select( HHA, y3_hhid, y3_rural, y3_weight )
 
+# TODO {tom}: Add in a variable for the number of plots owned by a household.
 # calcualte the households capital stocks. quantity refers to the 
 # quantity of a particular item owned or rented by the household.
 # value refers to the price in shillings for that item if it were 
 # to be sold. 
 AG11 <- read.spss( 'AG_SEC_11.SAV', to.data.frame = TRUE )
-cap <- select( AG11, y3_hhid, itemname, quantity.own=ag11_01, value.own=ag11_02,
-               quantity.rent=ag11_07, value.rent=ag11_09 )
+cap <- select( AG11, y3_hhid, itemname, quantity_own=ag11_01, value_own=ag11_02,
+               quantity_rent=ag11_07, value_rent=ag11_09 )
 cap <- group_by( cap, y3_hhid ) %>%
-        summarise( own.sh=plus( quantity.own*value.own ),
-                   rent.sh=plus( quantity.rent*value.rent ) )
+        summarise( own_sh=plus( quantity_own*value_own ),
+                   rent_sh=plus( quantity_rent*value_rent ) )
 
 # join together information on household characteristics and capital
-HH.total <- left_join( HH, cap )
+HH_total <- left_join( HH, cap )
+
+# write to file
+# write.csv(HH_total, "M:/cleaned_data/HH_total_w3.csv", row.names=FALSE)
 
 # ------------------------------------
 # plot output and harvest details
 # ------------------------------------
-filepath <- "c:/Users/morle001/Dropbox/Micro_IPOP/Data/Tanzania/2010_11/Other/CropCodes.xlsx"
-AG4A <- read.spss('AG_SEC_4A.SAV', to.data.frame = TRUE)
-CropCodes <- read.xls(filepath, sheet=1)
-# input and output variables
-plot.IO <- transmute( AG4A, y3_hhid, plotnum, zaocode, total.plot=ag4a_01,
-               inter.crop=ag4a_04, seed.type=ag4a_08, seed.sh=ag4a_12,
-               output.kg=ag4a_28, output.sh=ag4a_29)
 
-# write.csv(plot.IO, "M:/cleaned_data/2012/plot_output_y3.csv", row.names=FALSE)
+filepath <- "c:/Users/morle001/Dropbox/Micro_IPOP/Data/Tanzania/2010_11/Other/CropCodes.xlsx"
+AG4A <- read.spss( 'AG_SEC_4A.SAV', to.data.frame = TRUE )
+# input and output variables
+plot.IO <- transmute( AG4A, y3_hhid, plotnum, zaocode, total_plot=ag4a_01,
+               inter_crop=ag4a_04, seed_type=ag4a_08, seed_sh=ag4a_12,
+               output_kg=ag4a_28, output_sh=ag4a_29 )
+
+# write.csv(plot.IO, "M:/cleaned_data/2012/plot_output_w3.csv", row.names=FALSE)
 
 # -------------------------------------
 # plot level variables
@@ -84,7 +90,7 @@ gsub( " ", "", "M1 ", fixed=TRUE ) # returns "M1"
 AG3A$plotnum <- gsub( " ", "", AG3A$plotnum, fixed=TRUE )
 
 # calculate the total labour days for hired and family labour. This requires
-# manipulation because of the way the way values were entered into the survey.
+# manipulation because of the way values were entered into the survey.
 # see agricultural questionnaire Qs 72 and 74 for details.
 lab <- select( AG3A, y3_hhid, plotnum, ag3a_72_id1:ag3a_74_16 )
 bad <- grep( "ag3a_72_id", names( lab ) )
@@ -93,20 +99,20 @@ bad <- names( lab )[( length( lab )-15 ):length( lab )][seq( from=4, to=16, by=4
 lab <- lab[, -which( names( lab ) %in% bad )]
 
 lab <- transmute( lab, y3_hhid, plotnum,
-                  fam.lab.days=rowSums( lab[, 3:30], na.rm=TRUE ),
-                  hir.lab.days=rowSums( lab[, 32:ncol( lab )], na.rm=TRUE ) )
+                  fam_lab_days=rowSums( lab[, 3:30], na.rm=TRUE ),
+                  hir_lab_days=rowSums( lab[, 32:ncol( lab )], na.rm=TRUE ) )
 
 # Select variables that are important for analysis
 # fallow has 0 if plot has never been left fallow and 98 if the respondent does
 # not know when the last time the plot was left fallow
-plot.vars <- select( AG3A, y3_hhid, plotnum, soil = ag3a_10, soilq = ag3a_11,
-               erosion = ag3a_13, slope = ag3a_17, irrig = ag3a_18,
-               fallow = ag3a_22, fallow.years = ag3a_23, org = ag3a_41,
-               orgQ1 = ag3a_42, inorg1 = ag3a_47, inorg.type1 = ag3a_48,
-               inorgQ1 = ag3a_49, voucher1 = ag3a_50, inorg2 = ag3a_54,
-               inorg.type2 = ag3a_55, inorgQ2 = ag3a_56, voucher2 = ag3a_57,
-               pest = ag3a_60, pestQ = ag3a_62_1, pestU = ag3a_62_2, 
-               short.rain = ag3a_81, short.rain.crop = ag3a_82, owned = ag3a_25 )
+plot.vars <- select( AG3A, y3_hhid, plotnum, soil=ag3a_10, soilq=ag3a_11,
+               erosion=ag3a_13, slope=ag3a_17, irrig=ag3a_18,
+               fallow=ag3a_22, fallow_years=ag3a_23, org=ag3a_41,
+               orgQ1=ag3a_42, inorg1=ag3a_47, inorg_type1=ag3a_48,
+               inorgQ1=ag3a_49, voucher1=ag3a_50, inorg2=ag3a_54,
+               inorg_type2=ag3a_55, inorgQ2=ag3a_56, voucher2=ag3a_57,
+               pest=ag3a_60, pestQ=ag3a_62_1, pestU=ag3a_62_2, 
+               short_rain=ag3a_81, short_rain_crop=ag3a_82, owned=ag3a_25 )
 
 # revalue the ownership variable to only OWNED or RENTED
 plot.vars$owned <- revalue(plot.vars$owned,
@@ -118,22 +124,22 @@ plot.vars$owned <- revalue(plot.vars$owned,
 # is that when two kinds of inorganic fertilizer have been used on the same plot
 # it is necessary to calculate the sum of nitrogen in each fertilizer.
 plot.vars <- mutate(plot.vars,
-               inorg.type1 = factor( inorg.type1,
+               inorg_type1 = factor( inorg_type1,
                                     labels=c( "DAP", "UREA", "TSP", "CAN", "SA",
                                              "generic NPK (TZA)", "MRP" ) ),
-               inorg.type2 = factor( inorg.type2,
+               inorg_type2 = factor( inorg_type2,
                                     labels=c( "DAP", "UREA", "TSP", "CAN", "SA",
                                              "generic NPK (TZA)", "MRP" ) ) )
 
 # select only plot key and fertilizer type - melt the data frame so that the
 # observational unit because fertilizer type per plot
-s <- select( plot.vars, y3_hhid, plotnum, inorg.type1, inorg.type2 )
+s <- select( plot.vars, y3_hhid, plotnum, inorg_type1, inorg_type2 )
 m <- melt( s, id = c( 'y3_hhid', 'plotnum' ) ) 
 
 # filter m for eachtype of fertilizer and join this up with the quantity
-ty1 <- filter( m, variable == 'inorg.type1' ) %>%
+ty1 <- filter( m, variable == 'inorg_type1' ) %>%
         left_join( select(plot.vars, y3_hhid, plotnum, quantity = inorgQ1 ) )
-ty2 <- filter( m, variable == 'inorg.type2' ) %>%
+ty2 <- filter( m, variable == 'inorg_type2' ) %>%
         left_join( select(plot.vars, y3_hhid, plotnum, quantity = inorgQ2 ) )
 tot <- rbind( ty1, ty2 ) %>% rename( type = value )
 
@@ -156,12 +162,14 @@ fert.vars <- mutate( fert.vars, N=quantity*( N_share/100 ),
 
 # calculate the sum of nitrogen used on each plot 
 fert.vars <- group_by( fert.vars, y3_hhid, plotnum ) %>%
-        summarise( nitrogen.kg=sum( N, na.rm=TRUE ),
-                  phosphorous.kg=sum( P, na.rm=TRUE ),
-                  potassium.kg=sum( K, na.rm=TRUE ) )
+        summarise( nitrogen_kg=sum( N, na.rm=TRUE ),
+                  phosphorous_kg=sum( P, na.rm=TRUE ),
+                  potassium_kg=sum( K, na.rm=TRUE ) )
 
 # join fertilizer information with other important variables
 plot.vars <- left_join( plot.vars, fert.vars ) %>% left_join( lab )
+
+# write.csv(plot.vars, "M:/cleaned_data/2012/plot_variables_w3.csv", row.names=FALSE)
 
 # -------------------------------------
 # consumer prices of foodstuffs
@@ -217,4 +225,4 @@ x <- strsplit( as.character(prices$item_name) , "  " )
 prices$item_name <- factor( sapply( x, function( elt ) return( elt[[1]] ) ) )
 
 # write everything to a CSV file to use later
-# write.csv( prices, "M:/cleaned_data/2012/prices.csv", row.names = FALSE )
+# write.csv( prices, "M:/cleaned_data/2012/prices_w3.csv", row.names = FALSE )

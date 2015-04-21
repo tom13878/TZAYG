@@ -54,4 +54,4 @@ output <- filter(output, zaocode == "Maize") %>%
         select(y2_hhid, plotnum, total.plot, inter.crop, seed.type)
 output.maize <- left_join(output.maize, output)
 
-write.csv(output.maize, "./2010/output_maize_y2.csv", row.names = FALSE)
+# write.csv(output.maize, "./2010/output_maize_y2.csv", row.names = FALSE)

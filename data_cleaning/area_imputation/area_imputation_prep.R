@@ -164,4 +164,6 @@ comp <- comp[!bad, ]
 # area.est and area.gps
 
 
+
+
 write.csv(comp, "M:/comp.csv", row.names=TRUE)

@@ -11,7 +11,7 @@ setwd('M:/cleaned_data')
 library(ggplot2)
 library(plyr)
 library(dplyr)
-source("M:/TZAYG/winsor.R")
+source("M:/TZAYG/functions/winsor.R")
 
 # read in price data prepared earlier in 
 # TZA12_prep.R file and stored  in

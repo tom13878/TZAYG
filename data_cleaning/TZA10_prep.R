@@ -23,182 +23,134 @@ lapply(x, library, character.only = TRUE)
 library(dplyr)
 
 # 4. source functions
-source("M:/TZAYG/plus.R") 
-source("M:/TZAYG/missing.plot.R") 
+source("M:/TZAYG/functions/plus.R") 
+source("M:/TZAYG/functions/missing.plot.R") 
 
 # A. Household level data - Create HH level indicators
 
-HQSECB <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_B.dta",
-                   convert.factors = TRUE)
-HQSECC <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_C.dta",
-                   convert.factors = TRUE)
-HQSECE1 <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_E1.dta",
-                    convert.factors = TRUE)
-AQSEC11 <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC11.dta",
-                    convert.factors = TRUE)
-AQSEC3A <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
-                    convert.factors = FALSE)
+HHB <- read.dta( "./Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_B.dta",
+                   convert.factors = TRUE )
 
-hh.char <- left_join(HQSECC, select(HQSECB, y2_hhid:hh_b05)) %>%
-  left_join(select(HQSECE1, y2_hhid, indidy2, hh_e06)) %>%
-  ddply(.(y2_hhid), transform, hh.size=length(indidy2)) %>%
-  filter(hh_b05 == "HEAD") %>% transmute(y2_hhid, hh_c04, hh_b03_1,
-                                         soh = factor(hh_b02), aoh = hh_b04,
-                                         schl = hh_c08, hh.size)
+AG11 <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC11.dta",
+                     convert.factors = TRUE)
+
+HH <- select( HHB, y2_hhid, indidy2, sex = hh_b02, age = hh_b04, status = hh_b05 )
+by_hhid <- group_by( HH, y2_hhid ) %>% summarise( hh_size =length( indidy2 ) )
+HH <- filter( HH, status == "HEAD" )
+HH <- left_join( select( HH, -indidy2, -status ), by_hhid )
 
 
-hh.char$schl[hh.char$schl == 9999] <- NA # set year of leaving school to NA if it is unknown (9999)
-hh.char$schl[hh.char$schl == 1697] <- 1997
-
-hh.char$educ <- ifelse(complete.cases(hh.char$hh_c04, hh.char$hh_b03_1, hh.char$schl),
-                       hh.char$schl - (hh.char$hh_b03_1 + hh.char$hh_c04), NA)
-
-table(!is.na(hh.char$schl))
 # Compute capital stock per HH
-hh.cap <- ddply(AQSEC11, .(y2_hhid), summarize, own.sh = plus(ag11_01*ag11_02),
-                rent.sh = plus(ag11_07*ag11_09))
-hh.cap$rent.sh[is.na(hh.cap$rent.sh)] <- 0 # set missing values to 0
-hh.plots <- ddply(AQSEC3A, .(y2_hhid), summarize, plots = sum(!is.na(plotnum)),
-                  plot.missing = factor(missing.plot(zaocode)))
+cap <- select( AG11, y2_hhid, itemcode, quantity_own=ag11_01, value_own=ag11_02,
+               quantity_rent=ag11_07, value_rent=ag11_09 )
+cap <- group_by( cap, y2_hhid ) %>%
+        summarise( own_sh=plus( quantity_own*value_own ),
+                   rent_sh=plus( quantity_rent*value_rent ) )
 
-hh.total <- left_join(hh.char, hh.cap) %>% left_join(hh.plots)
+HH_total <- left_join( HH, cap )
 
-# add a region variable year 2 is a pain because factor labels have to come from another file
-HQSECA <- read.dta('C:/Users/morle001/Dropbox/Micro_IPOP/Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_A.dta', convert.factors = TRUE) 
-y2commlink <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2COMDTA/y2commlink.dta", convert.factors = TRUE)
-
-y2_hhid.region <- unique(select(HQSECA, y2_hhid, region)) %>% 
-        mutate(region = factor(region, labels = levels(factor(y2commlink$id_01))))
-
-hh.total <- left_join(hh.total, y2_hhid.region)
-
-write.csv(hh.total, "M:/cleaned_data/2010/household.csv", row.names = FALSE)
+# write.csv( HH_total, "M:/cleaned_data/2010/HH_total_w2.csv", row.names=FALSE )
 
 # B. plot level input - output data
 
-AQSEC4A <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC4A.dta",
-                    convert.factors = TRUE)
-CropCodes <- read.xls("./Data/Tanzania/2010_11/Other/CropCodes.xlsx", sheet=1)
+AG4A <- read.dta( "./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC4A.dta",
+                    convert.factors=TRUE )
+CropCodes <- read.xls( "./Data/Tanzania/2010_11/Other/CropCodes.xlsx", sheet=1 )
 
-plot.IO <- transmute(AQSEC4A, y2_hhid, plotnum, zaocode = factor(zaocode,
-                      levels = CropCodes$zaocode, labels = CropCodes$CropName),
-                      total.plot = ag4a_01, crop.share = ag4a_02,
-                      plant.prob = ag4a_03, inter.crop = ag4a_04,
-                      harv.prob = ag4a_10, output.kg = ag4a_15,
-                      output.ton = ag4a_15/1000, output.sh = ag4a_16,
-                      seeds.sh = ag4a_21, seed.type = ag4a_23,
-                      harv.comp = ag4a_12, ag4a_09, ag4a_19)
 
-levels(plot.IO$crop.share) <- c(levels(plot.IO$crop.share), 1)
-plot.IO$crop.share[plot.IO$total.plot == "YES"] <- 1
-levels(plot.IO$plant.prob) <- c(levels(plot.IO$plant.prob), "Full area planted")
-plot.IO$plant.prob[plot.IO$total.plot == "YES"] <- "Full area planted"
-levels(plot.IO$harv.prob) <- c(levels(plot.IO$harv.prob), "Full area harvested")
-plot.IO$harv.prob[plot.IO$ag4a_09 == "NO"] <- "Full area harvested"
-plot.IO$seeds.sh[plot.IO$ag4a_19 == "NO"] <- 0 
-levels(plot.IO$seed.type) <- c(levels(plot.IO$seed.type), "None purchased")
-plot.IO$seed.type[plot.IO$ag4a_19 == "NO"] <- "None purchased"
-plot.IO <- select(plot.IO, -(ag4a_09:ag4a_19))
 
-write.csv(plot.IO, "M:/cleaned_data/2010/plot_input_output.csv", row.names = FALSE)
+plot.IO <- transmute( AG4A, y2_hhid, plotnum, zaocode=factor( zaocode,
+                      levels=CropCodes$zaocode, labels=CropCodes$CropName ),
+                      total_plot=ag4a_01, inter_crop=ag4a_04, seed_type=ag4a_23,
+                      seed_sh=ag4a_21, output_kg=ag4a_15, output_sh=ag4a_16 )
+                     
 
-#' C. plot variables
-AQSEC2A <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC2A.dta",
-                    convert.factors = TRUE)
-AQSEC3A <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
-                    convert.factors = FALSE)
-plot.geo <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2GEODTA/Plot.Geovariables_Y2.dta",
-                     convert.factors = TRUE)
-areas <- read.dta('./Data/Plot_size/areas_tza_y2_imputed.dta')
-names(areas)[1] <- 'y2_hhid'
+# write.csv( plot.IO, "M:/cleaned_data/2010/plot_output_w2.csv", row.names=FALSE )
 
-plot.vars <- left_join(AQSEC2A, AQSEC3A) %>% left_join(areas) %>%
-        left_join(plot.geo)
+#' C. area variables
+areas <- read.dta( './Data/Plot_size/areas_tza_y2_imputed.dta')
+areas <- select( areas, y2_hhid=case_id, plotnum, area_est=area_sr_orig, area_gps, area_gps_imputed=area_gps_mi_50 )
+# write.csv(areas, "M:/cleaned_data/2012/areas_w2.csv", row.names=FALSE)
 
-plot.vars$ag3a_14[plot.vars$ag3a_14 == 3] <- NA # correction for one value that is 3 (impossible)
+#' D. plot variables
+AG3A <- read.dta( "./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
+                    convert.factors=TRUE )
 
-bad <- grep("ag3a_70_id", names(plot.vars))
-fam.lab.days <- apply(select(plot.vars[, -bad], ag3a_70_1:ag3a_70_30), 1, plus)
-hir.lab.days <- apply(select(plot.vars, ag3a_72_1:ag3a_72_9)[, c(1:3, 5:7, 9:11, 13:15)], 1, plus)
-plot.vars <- cbind(plot.vars, fam.lab.days) %>% cbind(hir.lab.days)
+# start with househjold and family labour
+lab <- select( AG3A, y2_hhid, plotnum, ag3a_70_id1:ag3a_72_9 )
+bad <- grep( "ag3a_70_id", names( lab ) )
 
-plot.vars <- transmute(plot.vars, y2_hhid, plotnum, hir.lab.days, fam.lab.days,
-                 area.est = ag2a_04*0.40468564224, area.gps = area_gps_mi_50, 
-                 plot.dist = as.numeric(dist01), 
-                 main.crop = factor(zaocode), 
-                 soil = factor(ag3a_09, labels=c("Sandy", "Loam", "Clay", " Other")), 
-                 soilq = factor(ag3a_10, labels=c("Good", "Average", "Bad")),
-                 eroscont = factor(ag3a_14, labels = c("YES", "NO")), 
-                 erosion = factor(ag3a_12, labels = c("YES", "NO")), 
-                 slope = factor(ag3a_16, labels = c("Flat bottom", "Flat top",
-                                                    "Slightly sloped", "Very steep")), 
-                 irrigation = factor(ag3a_17, labels = c("YES", "NO")), 
-                 ownership = factor(ag3a_24, labels = c("Owned", "Used free of charge", "Rented in",
-                                                      "Shared-rent", "shared-own")),
-                 land.title = factor(ag3a_27, labels = c("YES", "NO")),
-                 cultivate = factor(ag3a_38,  labels = c("YES", "NO")),
-                 org.fert = factor(ag3a_39,labels = c("YES", "NO")), org.fert.kg = ag3a_40,
-                 org.fert.price = ag3a_43, pest = factor(ag3a_58, labels=c("YES", "NO")),
-                 pest.type = factor(ag3a_59, labels = c("Pesticide", "Herbicide",
-                                                        "Fungicide", "Other"))
-                 ,pest.price = ag3a_61, ag3a_60_2, ag3a_60_1) 
-                 
-plot.vars$pest.kg = with(plot.vars,
-                         ifelse(ag3a_60_2=="MILLILITRE", ag3a_60_1/1000,
-                                ifelse(ag3a_60_2=="LITRE",ag3a_60_1*1, ag3a_60_1)))
-plot.vars <- select(plot.vars, -(c(ag3a_60_2, ag3a_60_1)))
+# remove houshold labour IDs and question ag3a_71 which we don't need
+lab <- lab[, -bad]
+lab <- select( lab, -ag3a_71 )
 
-plot.vars$org.fert.kg[is.na(plot.vars$org.fert.kg)] <- 0 
-plot.vars$org.fert.price[is.na(plot.vars$org.fert.price)] <- 0 
-plot.vars$pest.price[is.na(plot.vars$pest.price)] <- 0
-plot.vars$pest.kg[is.na(plot.vars$pest.kg)] <- 0
-plot.vars$fam.lab.days[is.na(plot.vars$fam.lab.days)] <- 0
-plot.vars$hir.lab.days[is.na(plot.vars$hir.lab.days)] <- 0
+# remove the wage paid in shillings to hired labour - might want this back later
+bad <- names( lab )[( length( lab )-15 ):length( lab )][seq( from=4, to=16, by=4 )]
+lab <- lab[, -which( names( lab ) %in% bad )]
 
-write.csv(plot.vars, "M:/cleaned_data/2010/plot_variables.csv", row.names = FALSE)
+# create a dataframe with just family and hired labour
+lab <- transmute( lab, y2_hhid, plotnum,
+                  fam_lab_days=rowSums( lab[, 3:26], na.rm=TRUE ),
+                  hir_lab_days=rowSums( lab[, 27:ncol( lab )], na.rm=TRUE ) )
 
-#' D. fertilizer variables are taken from agricultural questionnaire section 3A 
-#'    and used to produce a database of plots by fertilizer type and quantity
-#'    used of nitrogen per plot for use in the production function
-AQSEC3A <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
-                    convert.factors = FALSE)
-s <- select(AQSEC3A, y2_hhid, plotnum, type1 = ag3a_46, type2 = ag3a_53)
-m <- melt(s, id = c('y2_hhid', 'plotnum'))
-m <- arrange(m, variable)
+# create a datafrane with plot level characteristics
+plot_vars <- select( AG3A, y2_hhid, plotnum, soil=ag3a_09, soilq=ag3a_10,
+                     erosion=ag3a_12, slope=ag3a_16, irrig=ag3a_17,
+                     fallow=ag3a_21, fallow_years=ag3a_22, org=ag3a_39,
+                     orgQ1=ag3a_40, inorg1=ag3a_45, inorg_type1=ag3a_46,
+                     inorgQ1=ag3a_47, voucher1=ag3a_48, inorg2=ag3a_52,
+                     inorg_type2=ag3a_53, inorgQ2=ag3a_54, voucher2=ag3a_55,
+                     pest=ag3a_58, pestQ=ag3a_60_1, pestU=ag3a_60_2, 
+                     short_rain=ag3a_74, short_rain_crop=ag3a_75, owned=ag3a_24 )
 
-ty1 <- filter(m, variable == 'type1')
-ty2 <- filter(m, variable == 'type2')
+# change levels of the fertilizer names
+plot_vars <- mutate(plot.vars,
+                    inorg_type1 = factor( inorg_type1,
+                                          labels=c( "DAP", "UREA", "TSP", "CAN", "SA",
+                                                    "generic NPK (TZA)", "MRP" ) ),
+                    inorg_type2 = factor( inorg_type2,
+                                          labels=c( "DAP", "UREA", "TSP", "CAN", "SA",
+                                                    "generic NPK (TZA)", "MRP" ) ) )
 
-ty1j <- left_join(ty1, select(AQSEC3A, y2_hhid, plotnum, fert = ag3a_52, value = ag3a_46, fert.kg = ag3a_47, voucher = ag3a_48))
-ty1j <- select(ty1j, y2_hhid, plotnum, type = value, fert.kg, voucher, fert)
+# put together fertilizer variables. Each plot has the possibility of two 
+# types of fertilizer. As a result getting the total value of fertilizer on a
+# plot requires some manipulation
+s <- select( plot_vars, y2_hhid, plotnum, inorg_type1, inorg_type2 )
+m <- melt( s, id = c( 'y2_hhid', 'plotnum' ) ) 
 
-ty2j <- left_join(ty2, select(AQSEC3A, y2_hhid, plotnum, fert = ag3a_52, value = ag3a_53, fert.kg = ag3a_54, voucher = ag3a_48))
-ty2j <- select(ty2j, y2_hhid, plotnum, type = value, fert.kg, voucher, fert)
+# filter m for eachtype of fertilizer and join this up with the quantity
+ty1 <- filter( m, variable == 'inorg_type1' ) %>%
+        left_join( select(plot_vars, y2_hhid, plotnum, quantity=inorgQ1 ) )
+ty2 <- filter( m, variable == 'inorg_type2' ) %>%
+        left_join( select(plot_vars, y2_hhid, plotnum, quantity=inorgQ2 ) )
+tot <- rbind( ty1, ty2 ) %>% rename( type=value )
 
-tot <- rbind(ty1j, ty2j)
-
-# attach labels to fertilizer types
-tot <- transform(tot, type = factor(type, labels=c("DAP", "UREA", "TSP", "CAN", "SA",
-                                                   "generic NPK (TZA)", "MRP")))
 # read in fertilizer composition table
-fert.comp <- read.xls("Data/Other/Fert_comp.xlsx", sheet = 2) %>% rename(type = Fert_type2)
-fert.comp$P_share <- as.numeric(fert.comp$P_share)
-fert.comp$K_share <- as.numeric(fert.comp$K_share)
-fert.comp$N_share <- as.numeric(fert.comp$N_share)
+fert_comp <- read.xls( "Data/Other/Fert_comp.xlsx", sheet=2 ) %>%
+        rename( type=Fert_type2 )
 
-# create fertilizer variables
-fert.vars <- merge(tot, select(fert.comp, type, N_share, P_share, K_share), all.x = TRUE) %>%
-        mutate(N = fert.kg * (N_share/100), P = fert.kg * (P_share/100), K = fert.kg * (K_share/100)) %>%
-        select(y2_hhid, plotnum, everything()) %>%
-        ddply(.(y2_hhid, plotnum), summarize,
-              nitrogen.kg = sum(N, na.rm = TRUE),
-              phosphorous.kg = sum(P, na.rm = TRUE),
-              potassium.kg = sum(K, na.rm = TRUE)) %>%
-        arrange(desc(nitrogen.kg))
+fert_comp <- transform( fert_comp, P_share = as.numeric(P_share),
+                        K_share = as.numeric( K_share ),
+                        N_share = as.numeric( N_share ) )
 
-# merge back to get voucher variable
-fert.vars <- left_join(fert.vars, unique(select(tot, y2_hhid, plotnum, voucher, fert)))
-write.csv(fert.vars, "M:/cleaned_data/2010/fertilizer_variables.csv", row.names = FALSE)
+# join composition table with fertilizer information on type
+fert_vars <- left_join( tot, select( fert_comp, type, N_share, P_share, K_share ) )
+
+# calculate Nitrogen share of each fertilizer type
+fert_vars <- mutate( fert_vars, N=quantity*( N_share/100 ),
+                     P=quantity*( P_share/100 ), K=quantity*( K_share/100 ) )
+
+# calculate the sum of nitrogen used on each plot 
+fert_vars <- group_by( fert_vars, y2_hhid, plotnum ) %>%
+        summarise( nitrogen_kg=sum( N, na.rm=TRUE ),
+                   phosphorous_kg=sum( P, na.rm=TRUE ),
+                   potassium_kg=sum( K, na.rm=TRUE ) )
+
+# join fertilizer information with other important variables
+plot_vars <- left_join( plot_vars, fert_vars ) %>% left_join( lab )
+
+# write.csv(plot_vars, "M:/cleaned_data/2010/plot_variables_w2.csv", row.names=FALSE)
+     
 
 #' E. read in the community consumer prices from the community questionnaire and
 #'    return as output a cleaned set of prices that can be used to calculate the
@@ -229,5 +181,6 @@ prices$price.dis <- with(prices,
 prices <- select(prices, region, itemname, price.loc, price.dis)
 good <- !(is.na(prices$price.loc) & is.na(prices$price.dis))
 prices <- prices[good, ]
-write.csv(prices, "M:/cleaned_data/2010/prices.csv", row.names = FALSE)
+
+# write.csv(prices, "M:/cleaned_data/2010/prices_w2.csv", row.names = FALSE)
 

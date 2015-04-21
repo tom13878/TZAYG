@@ -1,3 +1,57 @@
+# -------------------------------------
+# The names given to crops in the output
+# section of the agricultural questionnaire
+# and the market price section of the 
+# community questionnaire are different.
+# this makes it difficult to match up 
+# prices and outputs
+#
+# This file contains code for making
+# a table with corresponding price and
+# output names for the different goods.
+# -------------------------------------
+
+# ------------ YEAR 1:2008 ------------
+
+
+# ------------ YEAR 2:2010 ------------
+
+
+
+
+# ------------ YEAR 3:2012 ------------
+output <- read.csv("M:/cleaned_data/2012/plot_output_y3.csv")
+# get the zaocodes from the output section, all in lower case
+zaocode <- unique(tolower(levels(output$zaocode)))
+
+# new variable which will hold a vector of item names for prices
+item_name <- zaocode
+
+# price names
+item_name[zaocode %in% c("amaranths", "bilimbi", "chilies", "coffee", "cotton",
+                         "fiwi", "pigeon pea", "pyrethrum", "seaweed", "sesame",
+                         "soyabeans", "sunflower", "water mellon")] <- "mangoes"
+item_name[zaocode %in% c("bambara nuts", "groundnut")] <- "groundnuts"
+item_name[zaocode %in% c("cucumber", "egg plant", "okra", "pumpkins", "tomatoes")] <- "tomatoes"
+item_name[zaocode %in% c("bullrush millet", "finger millet")] <- "millet (grain)"
+item_name[zaocode %in% "cassava"] <- "casava fresh"
+item_name[zaocode %in% c("chick peas", "cowpeas", "field peas")] <- "peas"
+item_name[zaocode %in% c("beans", "green gram")] <- "beans"
+item_name[zaocode %in% c("maize", "wheat")] <- "maize (grain)"
+item_name[zaocode %in% "paddy"] <- "rice (paddy)"
+item_name[zaocode %in% "sorghum"] <- "sorghum (grain)"
+
+cash_crop <- ifelse( zaocode %in% c( "coffee", "cotton", "tobacco"), TRUE, FALSE )
+
+crop_code_y3 <- data.frame( zaocode, item_name, cash_crop )
+
+
+# write.csv(crop_code_y3,"M:/cleaned_data/crop_code_y3.csv", row.names=FALSE)
+
+
+
+
+
 # create a dataframe with the cropcodes in it for year 1 
 setwd("c:/Users/morle001/Dropbox/Micro_IPOP")
 library(foreign)

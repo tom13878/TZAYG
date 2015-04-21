@@ -158,29 +158,41 @@ write.csv(plot_vars, "M:/TZAYG/data/2010/plot_variables_w2.csv", row.names=FALSE
 
 CQSECCJ <- read.dta("Data/Tanzania/2010_11/Stata/TZNPS2COMDTA/COMSEC_CJ.dta",
                     convert.factors = TRUE)
-prices <- select(CQSECCJ, region = id_01, itemname, unit1 = cm_j01a, weight1 = cm_j01b,
-                 price1 = cm_j01c, unit2 = cm_j02a, weight2 = cm_j02b, price2 = cm_j02c)
-prices$price1[prices$price1 == 0] <- NA
-prices$weight1[prices$weight1 == 0] <- NA
-prices$price2[prices$price2 == 0] <- NA
-prices$weight2[prices$weight2 == 0] <- NA
-prices$price.loc <- with(prices,
-                         ifelse(unit1 == "Grams", price1/(weight1/1000),
-                                ifelse (unit1 == "Kilograms", price1/(weight1),
-                                        ifelse(unit1 == "Litre", price1/(weight1),
-                                               ifelse(unit1 == "Millilitre", price1/(weight1/1000),
-                                                      ifelse(unit1 == "Pieces", price1/(weight1),
-                                                             price1/weight1))))))
-prices$price.dis <- with(prices,
-                         ifelse(unit2 == "Grams", price2/(weight2/1000),
-                                ifelse (unit2 == "Kilograms", price2/(weight2),
-                                        ifelse(unit2 == "Litre", price2/(weight2),
-                                               ifelse(unit2 == "Millilitre", price2/(weight2/1000),
-                                                      ifelse(unit2 == "Pieces", price2/(weight2),
-                                                             price2/weight2))))))
-prices <- select(prices, region, itemname, price.loc, price.dis)
-good <- !(is.na(prices$price.loc) & is.na(prices$price.dis))
+
+prices <- select(CQSECCJ, region = id_01, itemname, vill_unit = cm_j01a, vill_weight = cm_j01b,
+                 vill_price = cm_j01c, dis_unit = cm_j02a, dis_weight = cm_j02b, dis_price = cm_j02c)
+
+prices$vill_weight[prices$vill_weight == 0] <- NA
+prices$vill_price[prices$vill_price == 0] <- NA
+prices$dis_weight[prices$dis_weight == 0] <- NA
+prices$dis_price[prices$dis_price == 0] <- NA
+
+# get unit prices - making sure to convert units into kilograms, i.e. price
+# per kilogram.
+prices$vill_price <- with( prices,
+                           ifelse( vill_unit == "Grams", vill_price/( vill_weight/1000 ),
+                                   ifelse( vill_unit == "Kilograms", vill_price/( vill_weight ),
+                                           ifelse( vill_unit == "Litre", vill_price/( vill_weight ),
+                                                   ifelse( vill_unit == "Millilitre", vill_price/( vill_weight/1000 ),
+                                                           ifelse( vill_unit == "Pieces", vill_price/( vill_weight ),
+                                                                   vill_price/vill_weight ) ) ) ) ) )
+
+prices$dis_price <- with( prices,
+                          ifelse( dis_unit == "Grams", dis_price/( dis_weight/1000 ),
+                                  ifelse( dis_unit == "Kilograms", dis_price/( dis_weight ),
+                                          ifelse( dis_unit == "Litre", dis_price/( dis_weight ),
+                                                  ifelse( dis_unit == "Millilitre", dis_price/( dis_weight/1000 ),
+                                                          ifelse( dis_unit == "Pieces", dis_price/( dis_weight ),
+                                                                  dis_price/dis_weight ) ) ) ) ) )
+
+# don't need original prices anymore, just local and district level unit prices
+prices <- select( prices, region, item_name=itemname, vill_price, dis_price )
+
+good <- !( is.na( prices$vill_price ) & is.na( prices$dis_price ) )
 prices <- prices[good, ]
 
-write.csv(prices, "M:/TZAYG/data/2010/prices_w2.csv", row.names = FALSE)
+# put all regions to lower case to match up between different waves
+prices$region <- tolower(prices$region)
+
+# write.csv(prices, "M:/TZAYG/data/2010/prices_w2.csv", row.names = FALSE)
 

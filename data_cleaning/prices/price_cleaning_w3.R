@@ -7,7 +7,7 @@
 #' by the actual preparation of the prices
 #' 
 # -------------------------------------
-setwd('M:/cleaned_data')
+setwd('M:/TZAYG/data/2012')
 library(ggplot2)
 library(plyr)
 library(dplyr)
@@ -16,7 +16,7 @@ source("M:/TZAYG/functions/winsor.R")
 # read in price data prepared earlier in 
 # TZA12_prep.R file and stored  in
 # M:/cleaned_data/2012/prices.csv"
-prices <- read.csv( "M:/cleaned_data/2012/prices.csv" )
+prices <- read.csv( "M:/TZAYG/data/2012/prices_w3.csv" )
 
 # -----------BASIC ANALYSIS -----------
 
@@ -128,5 +128,5 @@ region_price$region_price[bad] <- region_price$national_price[bad]
 # finally take a quick look at all of the prices
 d_ply( region_price, .( item_name ), function( elt ) plotpattern( elt, 'region_price' ), .print = TRUE )
 
-# write.csv( region_price,"M:/cleaned_data/2012/prices_clean_y3.csv", row.names = FALSE )
+write.csv( region_price,"M:/TZAYG/data/2012/prices_clean_w3.csv", row.names = FALSE )
 

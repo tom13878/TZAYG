@@ -2,6 +2,7 @@
 #' Liu Meyeres calculation for third 
 #' wave of Tanzania panel (2012). 
 # -------------------------------------
+
 library( foreign )
 library( plyr )
 library( dplyr )
@@ -36,21 +37,21 @@ levels( regions$region )[levels( regions$region )=="mjini/magharibi unguja"] <- 
 # watch out for duplicates. There are two farmers who grow maize and beans on
 # their fields and for some reason they have reported the beans as though they
 # were two separate crops on the same plot.
-test <- ddply( output, .( y3_hhid, plotnum, zaocode ), function( elt ) nrow( elt ) ) 
-test[test$V1 %in% 2,]
+# test <- ddply( output, .( y3_hhid, plotnum, zaocode ), function( elt ) nrow( elt ) ) 
+# test[test$V1 %in% 2,]
 
 # filter on only those plots that have maize on them and count the number of
 # of crops per maize plot. Also filter out the plots where there is a duplicate
 # as described above
 by_plot <- group_by(output, y3_hhid, plotnum) %>%
         filter(any(zaocode %in% "maize") & length(zaocode) == length(unique(zaocode))) %>%
-        summarise(crop_count=length(zaocode)) # 3077 plots once a coople of duplicates have been removed.
+        summarise(crop_count=length(zaocode)) # 3077 plots once a couple of duplicates have been removed.
 
 # merge together the output, region and cropcodes and the price data. Need
 # crop codes because zaocodes in the output data and the item_name in the price 
 # data are different
-output_maize <- left_join(by_plot, output)
-output_maize <- left_join(output_maize, regions)
+output_maize <- left_join( by_plot, output )
+output_maize <- left_join( output_maize, regions )
 output_maize <- left_join( output_maize, crop_codes )
 output_maize <- left_join( output_maize, prices )
 

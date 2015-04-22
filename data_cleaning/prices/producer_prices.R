@@ -1,7 +1,8 @@
 # -------------------------------------
 #' Information on the prices that farmers
 #' received for their crops can be found
-#' in agricultural questionnaire section 5
+#' in wave 2 agricultural questionnaire
+#' section 5
 #' 
 #' There is not a direct market producer
 #' price, but we do know the quantity of
@@ -11,21 +12,20 @@
 # -------------------------------------
 
 setwd( "c:/Users/morle001/Dropbox/Micro_IPOP" )
-library( foreign )
+library( haven )
 
 # read in the price data
-price_data <- read.dta( "./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC5A.dta",
-                       convert.factors=TRUE )
+price_data <- read_dta( "./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC5A.dta")
 
-length( unique( price_data$y2_hhid ) ) # total number of households in price data
-length( unique( price_data$zaocode ) ) # number of differnt crops sold: exactly 50
-class( price_data$zaocode ) # integer not character!
+# length( unique( price_data$y2_hhid ) ) # total number of households in price data
+# length( unique( price_data$zaocode ) ) # number of different crops sold: exactly 50
+# class( price_data$zaocode ) # labelled!
 
-# select out only maize with a zaocode of 11
-maize_price <- subset(price_data, zaocode==11 & ag5a_01=="YES") %>%
+# select out only maize with a zaocode of 11 and also when the crop is actually sold
+maize_price <- subset(price_data, zaocode==11 & ag5a_01==1) %>%
         select(y2_hhid:ag5a_19)
 
-# focus only on the first customer for and check the variances of the 
+# focus only on the first customer and check the variances of the 
 # prices between the different groups
 maize_price2 <- transmute(maize_price, y2_hhid, ag5a_04_1, unit_price=ag5a_06/ag5a_05)
 ggplot(maize_price2) + geom_histogram(aes(x=unit_price)) + facet_wrap(~ag5a_04_1)

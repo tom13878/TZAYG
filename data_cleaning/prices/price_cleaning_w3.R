@@ -20,47 +20,47 @@ prices <- read.csv( "M:/TZAYG/data/2012/prices_w3.csv" )
 
 # -----------BASIC ANALYSIS -----------
 
-# plotting functions
-plotpattern <- function( df, col ){
-        ggplot( df, aes_string( col ) ) + geom_histogram( fill='red', colour='black', binwidth=50 ) +
-                labs( title=paste( as.character( df$item_name[1] ), 'price plot', sep=' ' ) ) +
-                theme_bw(  )
-}
-
-quantile_plot <- function( x, y ){
-        qqplot( x, y, col = 'red', xlab = 'Theoretical Quantiles',
-               ylab = 'Sample Quantiles', main = 'qqplot' )
-        
-        abline( a = 0, b = 1, col = 4 )      
-}
-
-dens_plot <- function( x, breaks = 25, freq = FALSE ){
-        hist( x, breaks = breaks, col = 'lightgreen', freq = freq )
-        curve( dnorm( x, mean=mean( x ), sd=sd( x ) ), add=TRUE, col="darkblue", lwd=2 )
-}
-
-# use plotpattern function to search for outliers in the data in both the village
-# and district level prices. There are lots of outliers in pretty much all of the
-# food stuffs at both the village and the district level.
-d_ply(prices, .( item_name ), function( elt ) plotpattern( elt, 'vill_price' ), .print=TRUE )
-d_ply(prices, .( item_name ), function( elt ) plotpattern( elt, 'dis_price' ), .print=TRUE )
-
-# check out some basic stats of the local and district level prices
-range( prices$vill_price, na.rm=TRUE )
-summary( prices$vill_price )
-
-range( prices$dis_price, na.rm=TRUE )
-summary( prices$dis_price )
-
-# make a quantile plot to see how the distribution of maize prices compares
-# to the normal distribution. Need to standardise the maize prices first.
-x <- rnorm( 289, mean=0, sd=1 )
-m <- filter( prices, item_name=='Maize (grain)' ) %>%
-        mutate( dis_price=( dis_price - mean(dis_price, na.rm=TRUE ) )/sd( dis_price, na.rm=TRUE ),
-               vill_price=( vill_price - mean( vill_price, na.rm=TRUE ) )/sd( vill_price, na.rm=TRUE ) )
-
-quantile_plot( x, m$vill_price ) # ouch
-quantile_plot( x, m$dis_price )  # double ouch
+# # plotting functions
+# plotpattern <- function( df, col ){
+#         ggplot( df, aes_string( col ) ) + geom_histogram( fill='red', colour='black', binwidth=50 ) +
+#                 labs( title=paste( as.character( df$item_name[1] ), 'price plot', sep=' ' ) ) +
+#                 theme_bw(  )
+# }
+# 
+# quantile_plot <- function( x, y ){
+#         qqplot( x, y, col = 'red', xlab = 'Theoretical Quantiles',
+#                ylab = 'Sample Quantiles', main = 'qqplot' )
+#         
+#         abline( a = 0, b = 1, col = 4 )      
+# }
+# 
+# dens_plot <- function( x, breaks = 25, freq = FALSE ){
+#         hist( x, breaks = breaks, col = 'lightgreen', freq = freq )
+#         curve( dnorm( x, mean=mean( x ), sd=sd( x ) ), add=TRUE, col="darkblue", lwd=2 )
+# }
+# 
+# # use plotpattern function to search for outliers in the data in both the village
+# # and district level prices. There are lots of outliers in pretty much all of the
+# # food stuffs at both the village and the district level.
+# d_ply(prices, .( item_name ), function( elt ) plotpattern( elt, 'vill_price' ), .print=TRUE )
+# d_ply(prices, .( item_name ), function( elt ) plotpattern( elt, 'dis_price' ), .print=TRUE )
+# 
+# # check out some basic stats of the local and district level prices
+# range( prices$vill_price, na.rm=TRUE )
+# summary( prices$vill_price )
+# 
+# range( prices$dis_price, na.rm=TRUE )
+# summary( prices$dis_price )
+# 
+# # make a quantile plot to see how the distribution of maize prices compares
+# # to the normal distribution. Need to standardise the maize prices first.
+# x <- rnorm( 289, mean=0, sd=1 )
+# m <- filter( prices, item_name=='Maize (grain)' ) %>%
+#         mutate( dis_price=( dis_price - mean(dis_price, na.rm=TRUE ) )/sd( dis_price, na.rm=TRUE ),
+#                vill_price=( vill_price - mean( vill_price, na.rm=TRUE ) )/sd( vill_price, na.rm=TRUE ) )
+# 
+# quantile_plot( x, m$vill_price ) # ouch
+# quantile_plot( x, m$dis_price )  # double ouch
 
 # winsor both price variables and check to see what they look like afterwards
 # winsoring like this will skew the distribution to the right. Might want to 
@@ -70,28 +70,28 @@ prices_winsor <- ddply( prices, .( item_name ), function( elt ) winsor3( elt, c(
 # may also need to watch the maize prices, seems to be a lage number of 
 # observations that end up at the edge of the distribution suggesting that a 
 # better approach is needed.
-d_ply( prices_winsor, .( item_name ), function( elt ) plotpattern( elt, 'vill_price' ), .print=TRUE )
-d_ply( prices_winsor, .( item_name ), function( elt ) plotpattern( elt, 'dis_price' ), .print=TRUE )
-
-# check the winsored prices with a quantile plot 
-m2 <- subset( prices_winsor, item_name=='Maize (grain)' ) %>% 
-        mutate( vill_price=( vill_price - mean( vill_price, na.rm = TRUE ) )/sd( vill_price, na.rm = TRUE ),
-               dis_price=( dis_price - mean( dis_price, na.rm = TRUE ) )/sd( dis_price, na.rm = TRUE ) )
-
-quantile_plot( x, m2$vill_price ) # much better
-quantile_plot( x, m2$dis_price )  # Also much better
-
-dens_plot( m2$vill_price, breaks = 20 ) # not bad
-dens_plot( m2$dis_price, breaks = 20 )  # Also not bad
-
-
-# ----------- FINAL PRICES ------------
-# For later analysis we need prices. Here two sets of prices are created from
-# the village and district prices by taking the average of each across regions
-# AND items. For example we might take the average of all Maize sold in village
-# markets in Dodoma. We also want to know the average ove the averages across
-# village and district level markets and the number of observations we have
-# to determine whether these prices are reliable or not
+# d_ply( prices_winsor, .( item_name ), function( elt ) plotpattern( elt, 'vill_price' ), .print=TRUE )
+# d_ply( prices_winsor, .( item_name ), function( elt ) plotpattern( elt, 'dis_price' ), .print=TRUE )
+# 
+# # check the winsored prices with a quantile plot 
+# m2 <- subset( prices_winsor, item_name=='Maize (grain)' ) %>% 
+#         mutate( vill_price=( vill_price - mean( vill_price, na.rm = TRUE ) )/sd( vill_price, na.rm = TRUE ),
+#                dis_price=( dis_price - mean( dis_price, na.rm = TRUE ) )/sd( dis_price, na.rm = TRUE ) )
+# 
+# quantile_plot( x, m2$vill_price ) # much better
+# quantile_plot( x, m2$dis_price )  # Also much better
+# 
+# dens_plot( m2$vill_price, breaks = 20 ) # not bad
+# dens_plot( m2$dis_price, breaks = 20 )  # Also not bad
+# 
+# 
+# # ----------- FINAL PRICES ------------
+# # For later analysis we need prices. Here two sets of prices are created from
+# # the village and district prices by taking the average of each across regions
+# # AND items. For example we might take the average of all Maize sold in village
+# # markets in Dodoma. We also want to know the average ove the averages across
+# # village and district level markets and the number of observations we have
+# # to determine whether these prices are reliable or not
 
 region_price <- ddply( prices_winsor, .( region, item_name ), summarize,
                        vill_price_region=mean( vill_price, na.rm = TRUE ),
@@ -126,7 +126,7 @@ bad <- is.na( region_price$region_price )
 region_price$region_price[bad] <- region_price$national_price[bad]
 
 # finally take a quick look at all of the prices
-d_ply( region_price, .( item_name ), function( elt ) plotpattern( elt, 'region_price' ), .print = TRUE )
-
-write.csv( region_price,"M:/TZAYG/data/2012/prices_clean_w3.csv", row.names = FALSE )
+# d_ply( region_price, .( item_name ), function( elt ) plotpattern( elt, 'region_price' ), .print = TRUE )
+# 
+# write.csv( region_price,"M:/TZAYG/data/2012/prices_clean_w3.csv", row.names = FALSE )
 

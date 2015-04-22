@@ -103,17 +103,18 @@ lab <- transmute( lab, y3_hhid, plotnum,
 # Select variables that are important for analysis
 # fallow has 0 if plot has never been left fallow and 98 if the respondent does
 # not know when the last time the plot was left fallow
-plot.vars <- select( AG3A, y3_hhid, plotnum, soil=ag3a_10, soilq=ag3a_11,
+plot_vars <- select( AG3A, y3_hhid, plotnum, soil=ag3a_10, soilq=ag3a_11,
                erosion=ag3a_13, slope=ag3a_17, irrig=ag3a_18,
                fallow=ag3a_22, fallow_years=ag3a_23, org=ag3a_41,
                orgQ1=ag3a_42, inorg1=ag3a_47, inorg_type1=ag3a_48,
-               inorgQ1=ag3a_49, voucher1=ag3a_50, inorg2=ag3a_54,
-               inorg_type2=ag3a_55, inorgQ2=ag3a_56, voucher2=ag3a_57,
-               pest=ag3a_60, pestQ=ag3a_62_1, pestU=ag3a_62_2, 
-               short_rain=ag3a_81, short_rain_crop=ag3a_82, owned=ag3a_25 )
+               inorgQ1=ag3a_49, voucher1=ag3a_50, inorg_price1=ag3a_51,
+               inorg2=ag3a_54, inorg_type2=ag3a_55, inorgQ2=ag3a_56,
+               voucher2=ag3a_57, inorg_price2=ag3a_58, pest=ag3a_60,
+               pestQ=ag3a_62_1, pestU=ag3a_62_2, short_rain=ag3a_81,
+               short_rain_crop=ag3a_82, owned=ag3a_25 )
 
 # revalue the ownership variable to only OWNED or RENTED
-plot.vars$owned <- revalue(plot.vars$owned,
+plot_vars$owned <- revalue(plot_vars$owned,
                            c( "SHARED - RENT"="RENTED",
                               "SHARED - OWN"="OWNED",
                               "RENTED IN"="RENTED" ) )
@@ -121,7 +122,7 @@ plot.vars$owned <- revalue(plot.vars$owned,
 # calculate the amount of nitrogen that was used per plot - main problem
 # is that when two kinds of inorganic fertilizer have been used on the same plot
 # it is necessary to calculate the sum of nitrogen in each fertilizer.
-plot.vars <- mutate(plot.vars,
+plot_vars <- mutate(plot_vars,
                inorg_type1 = factor( inorg_type1,
                                     labels=c( "DAP", "UREA", "TSP", "CAN", "SA",
                                              "generic NPK (TZA)", "MRP" ) ),
@@ -131,41 +132,54 @@ plot.vars <- mutate(plot.vars,
 
 # select only plot key and fertilizer type - melt the data frame so that the
 # observational unit because fertilizer type per plot
-s <- select( plot.vars, y3_hhid, plotnum, inorg_type1, inorg_type2 )
+s <- select( plot_vars, y3_hhid, plotnum, inorg_type1, inorg_type2 )
 m <- melt( s, id = c( 'y3_hhid', 'plotnum' ) ) 
 
 # filter m for eachtype of fertilizer and join this up with the quantity
 ty1 <- filter( m, variable == 'inorg_type1' ) %>%
-        left_join( select(plot.vars, y3_hhid, plotnum, quantity = inorgQ1 ) )
+        left_join( select(plot_vars, y3_hhid, plotnum, quantity=inorgQ1, price=inorg_price1 ) ) 
 ty2 <- filter( m, variable == 'inorg_type2' ) %>%
-        left_join( select(plot.vars, y3_hhid, plotnum, quantity = inorgQ2 ) )
-tot <- rbind( ty1, ty2 ) %>% rename( type = value )
+        left_join( select(plot_vars, y3_hhid, plotnum, quantity=inorgQ2, price=inorg_price2 ) ) 
+tot <- rbind( ty1, ty2 ) %>% rename( type=value )
 
 # read in fertilizer composition table
 setwd("c:/Users/morle001/Dropbox/Micro_IPOP")
-fert.comp <- read.xls( "Data/Other/Fert_comp.xlsx", sheet = 2 ) %>%
-        rename( type = Fert_type2 )
+fert_comp <- read.xls( "Data/Other/Fert_comp.xlsx", sheet=2 ) %>%
+        rename( type=Fert_type2 )
 setwd(filepath)
-
-fert.comp <- transform( fert.comp, P_share = as.numeric(P_share),
+fert_comp <- transform( fert_comp, P_share = as.numeric(P_share),
                         K_share = as.numeric( K_share ),
                         N_share = as.numeric( N_share ) )
 
 # join composition table with fertilizer information on type
-fert.vars <- left_join( tot, select( fert.comp, type, N_share, P_share, K_share ) )
+fert_vars <- left_join( tot, select( fert_comp, type, N_share, P_share, K_share ) )
 
 # calculate Nitrogen share of each fertilizer type
-fert.vars <- mutate( fert.vars, N=quantity*( N_share/100 ),
+fert_vars <- mutate( fert_vars, N=quantity*( N_share/100 ),
                      P=quantity*( P_share/100 ), K=quantity*( K_share/100 ) )
 
-# calculate the sum of nitrogen used on each plot 
-fert.vars <- group_by( fert.vars, y3_hhid, plotnum ) %>%
-        summarise( nitrogen_kg=sum( N, na.rm=TRUE ),
-                  phosphorous_kg=sum( P, na.rm=TRUE ),
-                  potassium_kg=sum( K, na.rm=TRUE ) )
+# set quantity, price and N, that are NA to zero
+fert_vars$quantity <- ifelse(is.na(fert_vars$quantity), 0, fert_vars$quantity)
+fert_vars$price <- ifelse(is.na(fert_vars$price), 0, fert_vars$price)
+fert_vars$N <- ifelse(is.na(fert_vars$N), 0, fert_vars$N)
+
+# calculate a price of nitrogen per plot by first converting nitrogen
+# into its nitrogen components, calcualting a weighted average of the prices
+# and finally using this weighted price and the total quantity of nitrogen to
+# make a unit price of nitrogen.
+fert_vars <- group_by( fert_vars, y3_hhid, plotnum ) %>%
+        summarise( price_type1=price[variable %in% "inorg_type1"],
+                   price_type2=price[variable %in% "inorg_type2"],
+                   quantity_type1=N[variable %in% "inorg_type1"],
+                   quantity_type2=N[variable %in% "inorg_type2"],
+                   nitrogen_kg=sum( N, na.rm=TRUE ),
+                   phosphorous_kg=sum( P, na.rm=TRUE ),
+                   potassium_kg=sum( K, na.rm=TRUE ),
+                   nitrogen_price=(price_type1*quantity_type1+price_type2*quantity_type2)/nitrogen_kg,
+                   nitrogen_unit_price=nitrogen_price/nitrogen_kg)
 
 # join fertilizer information with other important variables
-plot.vars <- left_join( plot.vars, fert.vars ) %>% left_join( lab )
+plot_vars <- left_join( plot_vars, fert_vars ) %>% left_join( lab )
 
 write.csv(plot.vars, "M:/TZAYG/data/2012/plot_variables_w3.csv", row.names=FALSE)
 

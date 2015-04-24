@@ -28,6 +28,8 @@ source("M:/TZAYG/functions/missing.plot.R")
 
 # A. Household level data - Create HH level indicators
 
+# 
+
 HHB <- read.dta( "./Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_B.dta",
                    convert.factors = TRUE )
 
@@ -38,7 +40,7 @@ HH <- select( HHB, y2_hhid, indidy2, sex = hh_b02, age = hh_b04, status = hh_b05
 by_hhid <- group_by( HH, y2_hhid ) %>% summarise( hh_size =length( indidy2 ) )
 HH <- filter( HH, status == "HEAD" )
 HH <- left_join( select( HH, -indidy2, -status ), by_hhid )
-
+levels(HH$sex) <- tolower(levels(HH$sex))
 
 # Compute capital stock per HH
 cap <- select( AG11, y2_hhid, itemcode, quantity_own=ag11_01, value_own=ag11_02,
@@ -63,7 +65,8 @@ plot.IO <- transmute( AG4A, y2_hhid, plotnum, zaocode=factor( zaocode,
                       levels=CropCodes$zaocode, labels=CropCodes$CropName ),
                       total_plot=ag4a_01, inter_crop=ag4a_04, seed_type=ag4a_23,
                       seed_sh=ag4a_21, output_kg=ag4a_15, output_sh=ag4a_16 )
-                     
+
+plot.IO$zaocode <- tolower(plot.IO$zaocode)
 
 write.csv( plot.IO, "M:/TZAYG/data/2010/plot_output_w2.csv", row.names=FALSE )
 

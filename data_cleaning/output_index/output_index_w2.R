@@ -43,9 +43,8 @@ test[test$V1 %in% 2,]
 # of crops per maize plot. Also filter out the plots where there is a duplicate
 # as described above
 by_plot <- group_by(output, y2_hhid, plotnum) %>%
-        filter(any(zaocode %in% "maize") & length(zaocode) == length(unique(zaocode))) %>%
-        summarise(crop_count=length(zaocode)) # 3077 plots once a couple of duplicates have been removed.
-
+        filter(any(zaocode %in% "maize") & length(zaocode) == length(unique(zaocode))) %>% 
+        summarise(crop_count=length(zaocode)) 
 
 # merge together the output, region and cropcodes and the price data. Need
 # crop codes because zaocodes in the output data and the item_name in the price 
@@ -71,8 +70,13 @@ output_maize$value <- output_maize$region_price * output_maize$output_kg
 # test2 <- na.omit(test)
 # test2[test2$N > 1,]
 
+# there are some NA values for zaocode that stop the ddply from working. Not
+# clear why these have an output level if they have no zaocode . . . 
+# TODO {tom morley}{ Look back over the output section to find out why this might be }
+output_maize2 <- output_maize[!(is.na(output_maize$zaocode)),]
+
 # finally calculate the Liu Myres index
-output_maize1 <- ddply(output_maize, .(y2_hhid, plotnum), 
+output_maize1 <- ddply(output_maize2, .(y2_hhid, plotnum), 
                       summarize, plot_value=sum(value),
                       maize_price=region_price[zaocode %in% "maize"],
                       maize_value=maize_price * output_kg[zaocode=="maize"],

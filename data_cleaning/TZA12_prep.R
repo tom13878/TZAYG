@@ -41,7 +41,7 @@ HH <- select( HHB, y3_hhid, y2_hhid, indidy3, sex = hh_b02, age = hh_b04, status
 by_hhid <- group_by( HH, y3_hhid ) %>% summarise( hh_size =length( indidy3 ) )
 HH <- filter( HH, status == "HEAD" )
 HH <- left_join( select( HH, -indidy3, -status ), by_hhid )
-
+levels(HH$sex) <- tolower(levels(HH$sex))
 # Get a variable for whether the household is in a rural area or not
 HHA <- read.spss( 'HH_SEC_A.SAV', to.data.frame = TRUE )
 rural_weight <- select( HHA, y3_hhid, y3_rural, y3_weight )

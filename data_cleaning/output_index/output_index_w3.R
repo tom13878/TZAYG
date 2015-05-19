@@ -11,7 +11,7 @@ filepath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maiz
 setwd( filepath )
 
 # read in prices
-prices <- read.csv( "M:/cleaned_data/2012/prices_clean_y3.csv" ) %>% 
+prices <- read.csv( "M:/TZAYG/data/2012/prices_clean_w3.csv" ) %>% 
         select( region, item_name, region_price )
 
 # read in region to match up with price regions
@@ -24,6 +24,8 @@ output <- read.csv( "M:/cleaned_data/2012/plot_output_y3.csv" )
 
 # read in crop codes because itemnames in each year are different
 crop_codes <- read.csv( "M:/cleaned_data/crop_code_y3.csv" )
+crop_codes$item_name[crop_codes$zaocode=="bulrush millet"] <- "millet (grain)"
+crop_codes$item_name[crop_codes$zaocode=="tobacco"] <- "mangoes"
 
 # Need to have item_name, region variables in lower case to match up with crop
 # name conversion table in crop_codes. Also one of the islands is spelt
@@ -69,4 +71,4 @@ output_maize <- ddply(output_maize, .(y3_hhid, plotnum),
                       beans = any(zaocode == "beans"), cash_crop=any(cash_crop))
 
 # save output
-# write.csv(output_maize, "M:/cleaned_data/output_index_y3.csv", row.names=FALSE)
+# write.csv(output_maize, "M:/TZAYG/data/2012/output_index_w3.csv", row.names=FALSE)

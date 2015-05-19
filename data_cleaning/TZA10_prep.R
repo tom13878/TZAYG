@@ -178,8 +178,12 @@ plot_vars <- left_join( plot_vars, fert_vars ) %>% left_join( lab )
 CQSECCJ <- read.dta("Data/Tanzania/2010_11/Stata/TZNPS2COMDTA/COMSEC_CJ.dta",
                     convert.factors = TRUE)
 
-prices <- select(CQSECCJ, region = id_01, itemname, vill_unit = cm_j01a, vill_weight = cm_j01b,
+prices <- select(CQSECCJ, region = id_01, item_name=itemname, vill_unit = cm_j01a, vill_weight = cm_j01b,
                  vill_price = cm_j01c, dis_unit = cm_j02a, dis_weight = cm_j02b, dis_price = cm_j02c)
+
+# one item is "", get rid of this one
+
+prices <- filter(prices, !(item_name==""))
 
 prices$vill_weight[prices$vill_weight == 0] <- NA
 prices$vill_price[prices$vill_price == 0] <- NA
@@ -205,13 +209,21 @@ prices$dis_price <- with( prices,
                                                                   dis_price/dis_weight ) ) ) ) ) )
 
 # don't need original prices anymore, just local and district level unit prices
-prices <- select( prices, region, item_name=itemname, vill_price, dis_price )
+prices <- select( prices, region, item_name, vill_price, dis_price )
 
-good <- !( is.na( prices$vill_price ) & is.na( prices$dis_price ) )
-prices <- prices[good, ]
+# # test to see if each item is available for each region
+# test <- unique( select(prices, region, item_name) )
+# test_split <- split(test, test$region)
+# test_split_result <- sapply(test_split, function(elt) unique(test$item_name) %in% elt$item_name)
+# table(test_split_result)
+
 
 # put all regions to lower case to match up between different waves
 prices$region <- tolower(prices$region)
+
+# we need a price for every good in every region. So merge the prices with
+# every possible region and price combination
+prices <- left_join( unique( select(prices, region, item_name) ), prices)
 
 # write.csv(prices, "M:/TZAYG/data/2010/prices_w2.csv", row.names = FALSE)
 

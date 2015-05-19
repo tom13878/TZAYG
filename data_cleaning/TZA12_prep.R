@@ -20,7 +20,7 @@
 filepath <- 'W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Tanzania/2012/Data'
 setwd( filepath )
 
-library( foreign )
+library( haven )
 library( reshape2 )
 library( gdata )
 library( plyr )
@@ -36,14 +36,15 @@ source( "M:/TZAYG/functions/plus.R" )
 # identification number of each individual in the household. Only information
 # on the HEAD of the household (who is assumed to be the plot manager) is
 # required for later analysis
-HHB <- read.spss( 'HH_SEC_B.SAV', to.data.frame = TRUE )
+HHB <- read_dta( 'HH_SEC_B.dta' )
+HHB$hh_b02 <- as_factor(HHB$hh_b02) %>% tolower()
 HH <- select( HHB, y3_hhid, y2_hhid, indidy3, sex = hh_b02, age = hh_b04, status = hh_b05 )
-by_hhid <- group_by( HH, y3_hhid ) %>% summarise( hh_size =length( indidy3 ) )
-HH <- filter( HH, status == "HEAD" )
+by_hhid <- ddply( HH, .(y3_hhid), summarise, hh_size =length( indidy3 ) )
+HH <- subset( HH, status %in% 1 )
 HH <- left_join( select( HH, -indidy3, -status ), by_hhid )
-levels(HH$sex) <- tolower(levels(HH$sex))
+# levels(HH$sex) <- tolower(levels(HH$sex))
 # Get a variable for whether the household is in a rural area or not
-HHA <- read.spss( 'HH_SEC_A.SAV', to.data.frame = TRUE )
+HHA <- read_dta( 'HH_SEC_A.dta' )
 rural_weight <- select( HHA, y3_hhid, y3_rural, y3_weight )
 
 # TODO {tom}: Add in a variable for the number of plots owned by a household.
@@ -51,37 +52,36 @@ rural_weight <- select( HHA, y3_hhid, y3_rural, y3_weight )
 # quantity of a particular item owned or rented by the household.
 # value refers to the price in shillings for that item if it were 
 # to be sold. 
-AG11 <- read.spss( 'AG_SEC_11.SAV', to.data.frame = TRUE )
+AG11 <- read_dta( 'AG_SEC_11.dta' )
 cap <- select( AG11, y3_hhid, itemname, quantity_own=ag11_01, value_own=ag11_02,
                quantity_rent=ag11_07, value_rent=ag11_09 )
-cap <- group_by( cap, y3_hhid ) %>%
-        summarise( own_sh=plus( quantity_own*value_own ),
+cap <- ddply( cap, .(y3_hhid), summarise, own_sh=plus( quantity_own*value_own ),
                    rent_sh=plus( quantity_rent*value_rent ) )
 
 # join together information on household characteristics and capital
 HH_total <- left_join( HH, cap )
 
-write.csv(HH_total, "M:/TZAYG/data/2012/HH_total_w3.csv", row.names=FALSE)
+# write_dta(HH_total, "M:/TZAYG/data/2012/HH_total_w3.dta")
 
 # ------------------------------------
 # plot output and harvest details
 # ------------------------------------
 
-AG4A <- read.spss( 'AG_SEC_4A.SAV', to.data.frame = TRUE )
+AG4A <- read_dta( 'AG_SEC_4A.dta' )
 # input and output variables
 plot.IO <- transmute( AG4A, y3_hhid, plotnum, zaocode, total_plot=ag4a_01,
                inter_crop=ag4a_04, seed_type=ag4a_08, seed_sh=ag4a_12,
                output_kg=ag4a_28, output_sh=ag4a_29 )
 
-write.csv(plot.IO, "M:/TZAYG/data/2012/plot_output_w3.csv", row.names=FALSE)
+# write_dta( plot.IO, "M:/TZAYG/data/2012/plot_output_w3.dta" )
 
 # -------------------------------------
-# plot level variables
+# plot level variables - need to work this out with the final
 # -------------------------------------
 
 # agricultural questionnaire section 3A contains a lot of plot specific 
 # information including fertilizer use.
-AG3A <- read.spss( 'AG_SEC_3A.SAV', to.data.frame=TRUE )
+AG3A <- read_dta( 'AG_SEC_3A.dta' )
 
 # the plotnumber variable in AG3A has whitespace that needs to be removed
 gsub( " ", "", "M1 ", fixed=TRUE ) # returns "M1"
@@ -114,10 +114,10 @@ plot_vars <- select( AG3A, y3_hhid, plotnum, soil=ag3a_10, soilq=ag3a_11,
                short_rain_crop=ag3a_82, owned=ag3a_25 )
 
 # revalue the ownership variable to only OWNED or RENTED
-plot_vars$owned <- revalue(plot_vars$owned,
-                           c( "SHARED - RENT"="RENTED",
-                              "SHARED - OWN"="OWNED",
-                              "RENTED IN"="RENTED" ) )
+# plot_vars$owned <- revalue(plot_vars$owned,
+#                            c( "SHARED - RENT"="RENTED",
+#                               "SHARED - OWN"="OWNED",
+#                               "RENTED IN"="RENTED" ) )
 
 # calculate the amount of nitrogen that was used per plot - main problem
 # is that when two kinds of inorganic fertilizer have been used on the same plot
@@ -181,7 +181,7 @@ fert_vars <- group_by( fert_vars, y3_hhid, plotnum ) %>%
 # join fertilizer information with other important variables
 plot_vars <- left_join( plot_vars, fert_vars ) %>% left_join( lab )
 
-write.csv(plot.vars, "M:/TZAYG/data/2012/plot_variables_w3.csv", row.names=FALSE)
+# write.csv(plot_vars, "M:/TZAYG/data/2012/plot_variables_w3.csv", row.names=FALSE)
 
 # -------------------------------------
 # consumer prices of foodstuffs
@@ -226,14 +226,18 @@ prices$dis_price <- with( prices,
 # don't need original prices anymore, just local and district level unit prices
 prices <- select( prices, region, item_name, vill_price, dis_price )
 
-# if both vill_price AND dis_price are NA then we can do nothing with them so
-# I remove them here
-good <- !( is.na( prices$vill_price ) & is.na( prices$dis_price ) )
-prices <- prices[good, ]
+# test to see if each item is available for each region
+test <- unique( select(prices, region, item_name) )
+test_split <- split(test, test$region)
+test_split_result <- sapply(test_split, function(elt) unique(test$item_name) %in% elt$item_name)
+table(test_split_result)
+
+# need to make sure there is a price observation for every item for every region
+prices <- left_join( unique( select(prices, region, item_name) ), prices)
 
 # a final thing. whoever imputed the data for year seriously does not understand
 # white space. The item_name variable is all messed up. following code fixes this
 x <- strsplit( as.character(prices$item_name) , "  " )
 prices$item_name <- factor( sapply( x, function( elt ) return( elt[[1]] ) ) )
 
-write.csv( prices, "M:/TZAYG/data/2012/prices_w3.csv", row.names = FALSE )
+# write.csv( prices, "M:/TZAYG/data/2012/prices_w3.csv", row.names = FALSE )

@@ -9,6 +9,7 @@ library(ggplot2)
 library(rattle)
 library(frontier)
 library(dplyr)
+library(car)
 source('M:/TZAYG/winsor.R')
 
 # read in 2010 data file
@@ -75,7 +76,7 @@ db2 <- db2[db2$nitrogen <= 700 & db2$yield <= 8000, ]
 g0 <- ggplot(subset(db2, !(nitrogen == 0)), aes(x = nitrogen, y = yield)) +
         geom_point() + theme_bw() + labs(title = 'yield response to nitrogen') +
         stat_smooth()
-
+g0
 # a plot to see how area affects the yield and nitrogen variables. One thing
 # that is clear is that plots with a very small area are biasing our results
 # upwards for both the yield and the nitrogen variables.
@@ -83,13 +84,13 @@ g1.1 <- ggplot(db2, aes(x = area.gps, y = yield)) +
         geom_point(alpha = 0.3) + theme_bw() + 
         labs(title = 'yield response to nitrogen') +
         stat_smooth()
-
+g1.1
 g1.2 <- ggplot(subset(db2, !(nitrogen == 0) & area.gps < 10),
                aes(x = area.gps, y = nitrogen)) +
         geom_point(alpha = 0.3) + theme_bw() +
         labs(title = 'yield response to nitrogen') +
         stat_smooth(colour = 'black')
-
+g1.2
 # one solution is to restrict our attention to values which fit the criteria of
 # small holder farmers by setting a minimum and maximum limit for plot size. 
 db2.1 <- subset(db2, area.gps <= 10 & area.gps >= 0.01)
@@ -97,7 +98,7 @@ db2.1 <- subset(db2, area.gps <= 10 & area.gps >= 0.01)
 g2 <- ggplot(subset(db2.1, !(nitrogen == 0)), aes(x = nitrogen, y = yield)) +
         geom_point() + theme_bw() + labs(title = 'yield response to nitrogen') +
         stat_smooth()
-
+g2
 # a second solution is to winsor values to remove values that are still
 # considered suspect. This is a conservative approach because values that are 
 # removed are replaced by the values at whatever quantile winsoring is performed
@@ -109,6 +110,7 @@ db2 <- winsor4(db2, x0, 0.01)
 g3 <- ggplot(subset(db2, !(nitrogen == 0)), aes(x = nitrogen, y = yield)) +
         geom_point() + theme_bw() + labs(title = 'yield response to nitrogen') +
         stat_smooth()
+g3
 
 # In the following analysis values have been winsored at the 99th percentile. 
 # post winsoring plots
@@ -177,7 +179,7 @@ g1 <- ggplot(subset(db3, !(cap == 0)) , aes(x = log(cap), y = yield)) +
         geom_point() + theme_bw()
 
 # yield against lab (note that this is only using the family labour)
-g2 <- ggplot(db3, aes(x = lab, y = yield)) + geom_point() + theme_bw()
+g2 <- ggplot(db3, aes(x = labF, y = yield)) + geom_point() + theme_bw()
 
 # relationship between nitrogen and yield facetted on important indicators
 g3 <- ggplot(subset(db3, !(nitrogen == 0)), aes(x = nitrogen, y = yield)) +
@@ -218,6 +220,7 @@ by_zone <- group_by(db3, zone) %>% summarise(
 # -------------------------------
 # create new variables so that it is possible to take logs for analysis
 #--------------------------------
+# CHECK NOT CORRECT WAY. 
 db3 <- mutate(db3,
               nitrogen2 = ifelse(nitrogen == 0, nitrogen + 1, nitrogen),
               cap2 = ifelse(cap == 0, cap + 1, cap),
@@ -229,12 +232,12 @@ db3 <- mutate(db3,
 # -------------------------------
 
 # basic specification
-olsQ0 <- lm(yield ~ nitrogen:maize.belt + I(0.5 * nitrogen^2):maize.belt +
+olsQ0 <- lm(yield ~ nitrogen:maize.belt + I(nitrogen^2):maize.belt +
                    labF + labH + log(cap2),
            data = db3)
 
 # add agronomic variables
-olsQ1 <- lm(yield ~ nitrogen:maize.belt + I(0.5 * nitrogen^2):maize.belt +
+olsQ1 <- lm(yield ~ nitrogen:maize.belt + I(nitrogen^2):maize.belt +
                     labF + labH + log(cap2) + area.gps + pest +
                     maize.share + slope + seed.type + irrigation + soil +
                     beans + inter.crop + org.fert + log(total.area) +
@@ -242,7 +245,7 @@ olsQ1 <- lm(yield ~ nitrogen:maize.belt + I(0.5 * nitrogen^2):maize.belt +
             data = db3)
 
 # add household characteristics: age and sex
-olsQ2 <- lm(yield ~ nitrogen:maize.belt + I(0.5 * nitrogen^2):maize.belt +
+olsQ2 <- lm(yield ~ nitrogen:maize.belt + I(nitrogen^2):maize.belt +
                     labF + labH + log(cap2) + area.gps + pest +
                     maize.share + slope + seed.type + irrigation + soil +
                     beans + inter.crop + org.fert + log(total.area) +
@@ -250,7 +253,7 @@ olsQ2 <- lm(yield ~ nitrogen:maize.belt + I(0.5 * nitrogen^2):maize.belt +
             data = db3)
 
 
-stargazer(olsQ, olsQ1, olsQ2, type = 'text')
+stargazer(olsQ0, olsQ1, olsQ2, type = 'text')
 
 # -------------------------------
 # Cobb-Douglas spec
@@ -327,19 +330,33 @@ stargazer(olsTL0, olsTL1, olsTL2, type = 'text')
 # ------------------------------
 
 hist(residuals(olsQ0), 15, col ="red")
+plot(olsQ0)
+residualPlots(olsQ0)
+marginalModelPlots(olsQ0)
 hist(residuals(olsQ1), 15, col ="red")
+plot(olsQ1)
+residualPlots(olsQ1)
+marginalModelPlots(olsQ1)
 hist(residuals(olsQ2), 15, col ="red")
+plot(olsQ2)
+residualPlots(olsQ2)
+marginalModelPlots(olsQ2)
 
 # LEFT SKEWED
 hist(residuals(olsCD0), 15, col ="red")
+plot(olsCD0)
 hist(residuals(olsCD1), 15, col ="red")
+plot(olsCD1)
 hist(residuals(olsCD2), 15, col ="red")
+plot(olsCD2)
 
 # LEFT SKEWED RESIDUALS
 hist(residuals(olsTL0), 15, col ="red")
+plot(olsTL0)
 hist(residuals(olsTL1), 15, col ="red")
+plot(olsTL1)
 hist(residuals(olsTL2), 15, col ="red")
-
+plot(olsTL2)
 # ------------------------------
 # Stochastic frontiers - Cobb-Douglas spec
 # ------------------------------
@@ -402,4 +419,9 @@ sfaTL2 <- sfa(log(yield) ~ log(nitrogen2) + log(cap2) + log(labF2) +
                      org.fert + log(total.area) + factor(crop.count) + aoh + soh,
              data = db3)
 
+summary(sfaTL2, extraPar = TRUE)
+efficiencies(sfaTL2)
+
 # still to add - wald test between the cobb-douglas and translog functions
+stargazer(sfaTL2, type = 'text')
+

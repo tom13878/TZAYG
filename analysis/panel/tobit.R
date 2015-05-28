@@ -24,8 +24,8 @@ library(dplyr)
 panel <- read_dta("M:/TZAYG/data/panel.dta")
 panel$y3_hhid <- as_factor(panel$y3_hhid)
 panel$plotnum <- as_factor(panel$plotnum)
-tp <- select(panel, hhid, plotnum, nitrogen_kg, irrig, org, pest, sex, age, own_sh, rent_sh, area_gps_imputed,
-             maize_price, nitrogen_price, year, y3_hhid)
+tp <- select(panel, hhid, plotnum, output_kg_old, output_kg_new, maize_share, crop_count, nitrogen_kg, irrig, org, pest, sex, age, own_sh, rent_sh, area_gps_imputed,
+             maize_price, nitrogen_price, year, y3_hhid, fam_lab_days, hir_lab_days, phosphorous_kg)
 
 # 1. need to get monocropping variable
 filepath1 <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Tanzania/2010/Stata/TZNPS2AGRDTA"
@@ -103,6 +103,7 @@ tp$y12 <-ifelse(tp$year %in% 2012, 1, 0)
 tp$org <- ifelse(tp$org %in% 2, 1, 0)
 tp$irrig <- ifelse(tp$irrig %in% 2, 1, 0)
 tp$pest <- ifelse(tp$pest %in% 2, 1, 0)
+
 # 9. need to make residency information for instrument
 filepath9 <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Tanzania/2010/Stata/TZNPS2HH1DTA"
 setwd(filepath9)
@@ -128,11 +129,17 @@ tp$maize_price <- ifelse(tp$year %in% 2010, tp$maize_price*1.16, tp$maize_price)
 
 # 11. need to calculate nitrogen application and get rid of outliers somehow.
 #     make all 0s NAs otherwise get infinite values. Then change back
-library(ggplot2)
+#     also do this for the maize yield and the plot yield
+
 qplot(nitrogen_kg, data=tp)
+qplot(output_kg_old, data=tp)
+qplot(output_kg_new, data=tp)
 tp$nitrogen_kg[tp$nitrogen_kg %in% 0 ] <- NA
 tp$area_gps_imputed[tp$area_gps_imputed %in% 0 ] <- NA
-tp <- mutate(tp, nitrogen=nitrogen_kg/area_gps_imputed)
+tp <- mutate(tp, nitrogen=nitrogen_kg/area_gps_imputed,
+             phosph=phosphorous_kg/area_gps_imputed,
+             plot_yld=output_kg_new/area_gps_imputed,
+             maize_yld=output_kg_old/area_gps_imputed)
 
 # winsor function for getting rid of outliers
 winsor5 <- function(var, multiple = 3){
@@ -150,9 +157,13 @@ winsor5 <- function(var, multiple = 3){
 }
 
 tp$nitrogen <- winsor5(tp$nitrogen, 10)
+tp$plot_yld <- winsor5(tp$plot_yld, 10)
+tp$maize_yld <- winsor5(tp$maize_yld, 10)
 tp$nitrogen[is.na(tp$nitrogen)] <- 0
 
 # also might as well clean the assets variable while we are at it
+# and put together the labour - combine hired and family labour
+tp <- mutate(tp, lab=fam_lab_days+hir_lab_days)
 tp$assets <- winsor5(tp$assets, 50)
 
 # 12. get land holdings information
@@ -218,11 +229,17 @@ tp2 <- left_join(tp2, residency2, by=c("hhid"="y3_hhid"))
 # now rbind everything together and remove variables that you do not need
 tp_12 <- tp_12[, names(tp_10)]
 tp <- rbind(tp_10, tp_12, tp2)
-tp <- select(tp, -plotnum, -nitrogen_kg, -own_sh, -rent_sh, -area_gps_imputed, -nitrogen_price, -year, -y3_hhid)
+tp <- select(tp, -plotnum, -nitrogen_kg, -own_sh, -rent_sh, -area_gps_imputed,
+             -nitrogen_price, -y3_hhid, -output_kg_new, -output_kg_old,
+             -fam_lab_days, -hir_lab_days, -phosphorous_kg)
 tp <- rename(tp, mech=ag11_01)
+tp <- mutate(tp, maize_share=maize_share/100)
+
 
 # replace residency values of 99 with the age of the household head
 tp$residency <- ifelse(tp$residency %in% 99, tp$age, tp$residency)
+tp$north <- ifelse(tp$region %in% "kilimanjaro", 1, 0)
+tp$south <- ifelse(tp$region %in% c("ruvuma", "mbeya", "iringa"), 1, 0)
 
 # 14. need to add averages of all time varying variables
 tp <- ddply(tp, .(hhid), transform, area_hat=mean(area, na.rm=TRUE),
@@ -230,30 +247,80 @@ tp <- ddply(tp, .(hhid), transform, area_hat=mean(area, na.rm=TRUE),
             ann_temp_hat=mean(ann_temp, na.rm=TRUE),
             maize_price_hat=mean(maize_price, na.rm=TRUE))
 
+tp <- select(tp, hhid, year, y12, region, plot_yld, maize_yld, nitrogen, lab, assets, everything())
+
 # get rid of everything you do not need
 x=ls()
 x <-x[!(x=="tp")]
 rm(list=x)
 
+# # make some tables of key variables and their statistics
+# by_year <- group_by(tp, year) %>% summarise(mym=mean(maize_yld[maize_share %in% 1], na.rm=TRUE), mysd=sd(maize_yld[maize_share %in% 1], na.rm=TRUE),
+#                                             pym=mean(plot_yld, na.rm=TRUE), pysd=sd(plot_yld, na.rm=TRUE),
+#                                             nitm=mean(nitrogen, na.rm=TRUE), nitsd=sd(nitrogen, na.rm=TRUE),
+#                                             phosm=mean(phosph, na.rm=TRUE), phossd=sd(phosph, na.rm=TRUE),
+#                                             assmm=mean(assets, na.rm=TRUE), asssd=sd(assets, na.rm=TRUE),
+#                                             labm=mean(lab, na.rm=TRUE), labsd=sd(lab, na.rm=TRUE),
+#                                             mechm=mean(mech, na.rm=TRUE), mechsd=sd(mech, na.rm=TRUE),
+#                                             irrigm=mean(irrig, na.rm=TRUE), irrigsd=sd(irrig, na.rm=TRUE),
+#                                             pestm=mean(pest, na.rm=TRUE), pestsd=sd(pest, na.rm=TRUE),
+#                                             orgm=mean(org, na.rm=TRUE), orgsd=sd(org, na.rm=TRUE),
+#                                             agem=mean(age, na.rm=TRUE), agesd=sd(age, na.rm=TRUE),
+#                                             femm=mean(sex, na.rm=TRUE), femsd=sd(sex, na.rm=TRUE),
+#                                             d2mm=mean(dist2market, na.rm=TRUE), d2msd=sd(dist2market, na.rm=TRUE),
+#                                             aream=mean(area, na.rm=TRUE), areasd=sd(area, na.rm=TRUE))
+# 
+# 
+# m <- melt(by_year, id.vars="year")
+# d <- dcast(m, variable ~ year)
+# xt <- xtable(as.data.frame(d))
+# print(xt, type="html")
+# 
+# # table of maize yields per region
+# by_region <- group_by(tp, region, year) %>% summarise(myldm = mean(maize_yld, na.rm=TRUE), myldsd=sd(maize_yld, na.rm=TRUE))
+# by_region <- subset(by_region, !is.na(region))
+# xt2 <- xtable(as.data.frame(by_region))
+# print(xt2, type="html")
+
+# some maps of maize yields by year and location - and the number of vouchers would be good
+
+
+
 library(AER)
-
-
-t1 <- tobit(nitrogen ~ residency + assets + sex, data=tp)
-
-# try a pooled tobit model - need to add assets back into this
+# 
+# 
+# # try a pooled tobit model - need to add assets back into this
 t1 <- tobit(nitrogen ~ residency + mech + pest + mono_crop + sex + age +
                  dist2market + area + I(area*area) + precip +
                  elevation + slope + ann_temp + maize_price, data=tp)
 
-# try a pooled tobit model with year effects
+# # try a pooled tobit model with year effects
 t2 <- tobit(nitrogen ~ residency + mech + pest + mono_crop + sex + age +
                  dist2market + area + I(area*area) + precip +
                  elevation + slope + ann_temp + maize_price + y12, data=tp)
-
-# try a CRE tobit model with year effects
+# 
+# # try a CRE tobit model with year effects
 t3 <- tobit(nitrogen ~ residency + mech + pest + mono_crop + sex + age +
                     dist2market + area + I(area*area) + precip +
                     elevation + slope + ann_temp + maize_price + y12 +
                     area_hat + precip_hat + ann_temp_hat + maize_price_hat, data=tp)
+# 
+# need better precipitation and temperature data from Michiel because here we
+# are not taking an average over time
+# 
+t4 <- tobit(nitrogen ~ residency + mech + pest + mono_crop + sex + age +
+                    dist2market + area + I(area*area) + precip +
+                    elevation + slope + ann_temp + maize_price + y12 +
+                    area_hat + precip_hat + ann_temp_hat + maize_price_hat +
+                    north + south, data=tp)
 
-# need better precipitation and temperature data from Michiel
+
+tp <- ddply(tp, .(hhid), transform, nitrogen_bar=mean(nitrogen, na.rm=TRUE),
+            lab_bar=mean(lab, na.rm=TRUE),
+            assets_bar=mean(assets, na.rm=TRUE),
+            area_bar=mean(area, na.rm=TRUE))
+
+
+summary(lm(maize_yld ~ nitrogen + I(nitrogen*nitrogen) + lab + assets + irrig + org + pest + sex + age +
+                   phosph + ann_temp + precip + elevation + slope + area + mech + mono_crop + y12 +
+                   nitrogen_bar + assets_bar + area_bar + lab_bar, data=tp))

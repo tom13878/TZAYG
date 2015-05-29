@@ -17,6 +17,7 @@ library(haven)
 library(stringr)
 library(ggplot2)
 library(plyr)
+detach(package:dplyr)
 library(dplyr)
 
 
@@ -196,6 +197,16 @@ areas_w2 <- ddply(areas_w2, .(hhid), summarise, area=sum(area, na.rm=TRUE))
 areas_w3 <- read.csv("M:/cleaned_data/2012/areas_w3.csv")
 areas_w3 <- group_by(areas_w3, y3_hhid) %>% summarise(area=sum(area_gps_imputed, na.rm=TRUE))
 
+# 13. get a urban/rural variable so we only focus on rural tanzania maize farmers.
+filepath12 <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Tanzania/2010/Stata/TZNPS2HH1DTA"
+setwd(filepath12)
+rural_w1 <- read_dta("HH_SEC_A.dta") %>% select(hhid=y2_hhid, rural=y2_rural)
+
+filepath13 <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Tanzania/2012/Data"
+setwd(filepath13)
+rural_w2 <- read_dta("HH_SEC_A.dta") %>% select(y3_hhid, rural=y3_rural)
+
+
 # 13. need to make a panel with all the variables here
 #     need to split along year lines as well
 
@@ -225,8 +236,8 @@ tp_12 <- left_join(tp_12, geo2, by="y3_hhid")
 tp2 <- left_join(tp2, geo2, by=c("hhid"="y3_hhid"))
 
 # merge in the land holding information
-tp_10 <- merge(tp_10, areas_w2, by="hhid")
-tp_12 <- merge(tp_12, areas_w3, by="y3_hhid")
+tp_10 <- left_join(tp_10, areas_w2, by="hhid")
+tp_12 <- left_join(tp_12, areas_w3, by="y3_hhid")
 tp2 <- left_join(tp2, areas_w3, by=c("hhid"="y3_hhid"))
 
 # merge in the mechanization and monocropping variables
@@ -239,15 +250,25 @@ tp_12 <- left_join(tp_12, mono_crop_12, by=c("y3_hhid", "plotnum"))
 
 tp2 <- left_join(tp2, tool_12, by=c("hhid"="y3_hhid"))
 mono_crop_12 <- rename(mono_crop_12, hhid=y3_hhid)
-tp2 <- merge(tp2, mono_crop_12, by=c("hhid", "plotnum"))
+tp2 <- left_join(tp2, mono_crop_12, by=c("hhid", "plotnum"))
 
 # add residency information
 tp_10 <- left_join(tp_10, residency1)
 tp_12 <- left_join(tp_12, residency2, by="y3_hhid")
 tp2 <- left_join(tp2, residency2, by=c("hhid"="y3_hhid"))
 
+# add the rural information
+tp_10 <- left_join(tp_10, rural_w1)
+tp_12 <- left_join(tp_12, rural_w2, by="y3_hhid")
+tp2 <- left_join(tp2, rural_w2, by=c("hhid"="y3_hhid"))
 # now rbind everything together and remove variables that you do not need
 tp_12 <- tp_12[, names(tp_10)]
+tp_12$region <- as.factor(tp_12$region)
+tp_10$residency <- as.factor(tp_10$residency)
+tp_10$y3_hhid <- as.character(tp_10$y3_hhid)
+tp2$region <- as.factor(tp2$region)
+tp2$y3_hhid <- as.character(tp2$y3_hhid)
+tp2$residency <- as.integer(tp2$residency)
 tp <- rbind(tp_10, tp_12, tp2)
 tp <- select(tp, -plotnum, -nitrogen_kg, -own_sh, -rent_sh, -area_gps_imputed,
              -nitrogen_price, -y3_hhid, -output_kg_new, -output_kg_old,
@@ -266,9 +287,11 @@ tp$south <- ifelse(tp$region %in% c("ruvuma", "mbeya", "iringa"), 1, 0)
 tp <- select(tp, hhid, year, y12, region, plot_yld, maize_yld, nitrogen, lab, assets, everything())
 bad <- grep("-", tp$hhid)
 tp <- tp[-bad,]
+tp <- tp[tp$rural %in% 1,]
+
 # get rid of everything you do not need
 x=ls()
 x <-x[!(x=="tp")]
 rm(list=x)
 
-write_dta(tp, "M:/TzAYG/data/tp.dta")
+# write_dta(tp, "M:/TzAYG/data/tp.dta")

@@ -152,8 +152,7 @@ gg <- gg + theme_map()
 gg <- gg + scale_fill_gradientn(colours=c("#ffffff", brewer.pal(n=9, name="YlOrRd")),
                                 na.value="#ffffff")
 
-# this map must have some uncertainty because we are going from a sample to a
-# region. how do we know that the sample is a good representation of the region?
+
 
 # still need to clean up data, seems that a single outlier can make a big
 # difference in these plots

@@ -3,10 +3,7 @@
 #' characteristics, input and output variables at the plot level, plot
 #' characteristics, fertilizer prices and information and foods prices.
 #' 
-#' The output of this script is stored as five seperate CSV files. These files
-#' are used to construct a database of winsored fertilizer and goods prices and 
-#' an output index. Finally, the output files will be used to create a complete
-#' 
+
 
 # 1. set working directory - may need to change this
 # setwd("D:\\Dijk158\\Dropbox\\Michiel research\\Micro_IPOP")
@@ -18,17 +15,16 @@ options("stringsAsFactors" = FALSE)
 options(digits = 4)
 
 # 3. install required packages
-x <- c("foreign", "stringr", "gdata", "car", "reshape2", "RColorBrewer", "rgdal", "raster", "plyr")
+x <- c("foreign", "stringr", "gdata", "car", "reshape2", "RColorBrewer", "plyr")
 lapply(x, library, character.only = TRUE)
 library(dplyr)
+library(haven)
 
 # 4. source functions
 source("M:/TZAYG/functions/plus.R") 
 source("M:/TZAYG/functions/missing.plot.R") 
 
 # A. Household level data - Create HH level indicators
-
-# 
 
 HHB <- read.dta( "./Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_B.dta",
                    convert.factors = TRUE )
@@ -51,7 +47,7 @@ cap <- group_by( cap, y2_hhid ) %>%
 
 HH_total <- left_join( HH, cap )
 
-write.csv( HH_total, "M:/TZAYG/data/2010/HH_total_w2.csv", row.names=FALSE )
+write_dta( HH_total, "M:/TZAYG/data/2010/HH_total_w2.dta" )
 
 # B. plot level input - output data
 
@@ -73,7 +69,7 @@ write.csv( plot.IO, "M:/TZAYG/data/2010/plot_output_w2.csv", row.names=FALSE )
 #' C. area variables
 areas <- read.dta( './Data/Plot_size/areas_tza_y2_imputed.dta')
 areas <- select( areas, y2_hhid=case_id, plotnum, area_est=area_sr_orig, area_gps, area_gps_imputed=area_gps_mi_50 )
-write.csv(areas, "M:/TZAYG/data/2010/areas_w2.csv", row.names=FALSE)
+write_dta(areas, "M:/TZAYG/data/2010/areas_w2.dta")
 
 #' D. plot variables
 AG3A <- read.dta( "./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
@@ -124,9 +120,9 @@ m <- melt( s, id = c( 'y2_hhid', 'plotnum' ) )
 
 # filter m for eachtype of fertilizer and join this up with the quantity
 ty1 <- filter( m, variable == 'inorg_type1' ) %>%
-        left_join( select(plot_vars, y2_hhid, plotnum, quantity=inorgQ1, price=inorg_price1 ) ) 
+        left_join( select(plot_vars, y2_hhid, plotnum, quantity=inorgQ1, price=inorg_price1, voucher=voucher1 ) ) 
 ty2 <- filter( m, variable == 'inorg_type2' ) %>%
-        left_join( select(plot_vars, y2_hhid, plotnum, quantity=inorgQ2, price=inorg_price2 ) ) 
+        left_join( select(plot_vars, y2_hhid, plotnum, quantity=inorgQ2, price=inorg_price2, voucher=voucher2 ) ) 
 tot <- rbind( ty1, ty2 ) %>% rename( type=value )
 
 # read in fertilizer composition table
@@ -152,7 +148,10 @@ fert_vars$N <- ifelse(is.na(fert_vars$N), 0, fert_vars$N)
 # calculate a price of nitrogen per plot by first converting nitrogen
 # into its nitrogen components, calcualting a weighted average of the prices
 # and finally using this weighted price and the total quantity of nitrogen to
-# make a unit price of nitrogen.
+# make a unit price of nitrogen. Also add in a price of nitrogen for those
+# who received a voucher (which cuts the price in half)
+fert_vars <- mutate(fert_vars, price=ifelse(voucher %in% "YES", price/2, price))
+
 fert_vars <- group_by( fert_vars, y2_hhid, plotnum ) %>%
         summarise( price_type1=price[variable %in% "inorg_type1"],
                    price_type2=price[variable %in% "inorg_type2"],
@@ -162,13 +161,14 @@ fert_vars <- group_by( fert_vars, y2_hhid, plotnum ) %>%
                    phosphorous_kg=sum( P, na.rm=TRUE ),
                    potassium_kg=sum( K, na.rm=TRUE ),
                    nitrogen_price=(price_type1*quantity_type1+price_type2*quantity_type2)/nitrogen_kg,
-                   nitrogen_unit_price=nitrogen_price/nitrogen_kg)
+                   nitrogen_unit_price=nitrogen_price/nitrogen_kg,
+                   voucher=ifelse(any(voucher %in% "YES"), 1, 0))
 
 
 # join fertilizer information with other important variables
 plot_vars <- left_join( plot_vars, fert_vars ) %>% left_join( lab )
 
-# write.csv(plot_vars, "M:/TZAYG/data/2010/plot_variables_w2.csv", row.names=FALSE)
+# write_dta(plot_vars, "M:/TZAYG/data/2010/plot_variables_w2.dta")
      
 
 #' E. read in the community consumer prices from the community questionnaire and

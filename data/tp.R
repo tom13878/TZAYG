@@ -1,17 +1,4 @@
-# -------------------------------------
-# produce a dataframe foe the first stage
-# tobit regression of the analysis following
-# Liverpool_Tasie et al (2014)
-# 
-# this is followed by tobit analysis
-# the residuals of which will be included
-# in a final model
-#
-# some cleaning will also be required for
-# variables like yield and nitrogen
-# application. And inflation will also
-# need to be considered.
-# -------------------------------------
+# produce dataframe for analysis
 
 library(haven)
 library(stringr)
@@ -26,7 +13,7 @@ panel <- read_dta("M:/TZAYG/data/panel.dta")
 panel$y3_hhid <- as_factor(panel$y3_hhid)
 panel$plotnum <- as_factor(panel$plotnum)
 tp <- select(panel, hhid, plotnum, output_kg_old, output_kg_new, maize_share, crop_count, nitrogen_kg, irrig, org, pest, sex, age, own_sh, rent_sh, area_gps_imputed,
-             maize_price, nitrogen_price, year, y3_hhid, fam_lab_days, hir_lab_days, phosphorous_kg, cash_crop)
+             maize_price, ngn_prc=nitrogen_unit_price, voucher, year, y3_hhid, fam_lab_days, hir_lab_days, phosphorous_kg, cash_crop, orgQ1)
 
 # 1. need to get monocropping variable
 filepath1 <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Tanzania/2010/Stata/TZNPS2AGRDTA"
@@ -129,16 +116,16 @@ residency2 <- subset(residency2, hh_b05 %in% 1) # filter on household head
 residency2 <- select(residency2, y3_hhid,  residency, -indidy3, -hh_b05)
 
 # 10. need to inflate nitrogen and maize prices
-tp$nitrogen_price <- ifelse(tp$year %in% 2010, tp$nitrogen_price*1.16, tp$nitrogen_price)
+tp$ngn_prc <- ifelse(tp$year %in% 2010, tp$ngn_prc*1.16, tp$ngn_prc)
 tp$maize_price <- ifelse(tp$year %in% 2010, tp$maize_price*1.16, tp$maize_price)
 
 # 11. need to calculate nitrogen application and get rid of outliers somehow.
 #     make all 0s NAs otherwise get infinite values. Then change back
 #     also do this for the maize yield and the plot yield
 
-qplot(nitrogen_kg, data=tp)
-qplot(output_kg_old, data=tp)
-qplot(output_kg_new, data=tp)
+# qplot(nitrogen_kg, data=tp)
+# qplot(output_kg_old, data=tp)
+# qplot(output_kg_new, data=tp)
 tp$nitrogen_kg[tp$nitrogen_kg %in% 0 ] <- NA
 tp$area_gps_imputed[tp$area_gps_imputed %in% 0 ] <- NA
 tp <- mutate(tp, nitrogen=nitrogen_kg/area_gps_imputed,
@@ -270,8 +257,11 @@ tp2$region <- as.factor(tp2$region)
 tp2$y3_hhid <- as.character(tp2$y3_hhid)
 tp2$residency <- as.integer(tp2$residency)
 tp <- rbind(tp_10, tp_12, tp2)
+tp <- select(tp, hhid, year, y12, region, plot_yld, maize_yld, nitrogen, lab, assets, everything())
+bad <- grep("-", tp$hhid)
+tp <- tp[-bad,]
 tp <- select(tp, -plotnum, -nitrogen_kg, -own_sh, -rent_sh, -area_gps_imputed,
-             -nitrogen_price, -y3_hhid, -output_kg_new, -output_kg_old,
+             -y3_hhid, -output_kg_new, -output_kg_old,
              -fam_lab_days, -hir_lab_days, -phosphorous_kg, -cash_crop)
 tp <- rename(tp, mech=ag11_01)
 tp <- mutate(tp, maize_share=maize_share/100)
@@ -282,16 +272,36 @@ tp$residency <- ifelse(tp$residency %in% 99, tp$age, tp$residency)
 tp$north <- ifelse(tp$region %in% "kilimanjaro", 1, 0)
 tp$south <- ifelse(tp$region %in% c("ruvuma", "mbeya", "iringa"), 1, 0)
 
+# also some last minute cleaning and changing
+# add in zone info
+tp$zone[tp$region %in% c("kagera","mwanza", "mara")] <- "Lake"
+tp$zone[tp$region %in% c("shinyanga","kigoma", "tabora")] <- "Western"
+tp$zone[tp$region %in% c("arusha","kilimanjaro", "manyara", "tanga")] <- "Northern"
+tp$zone[tp$region %in% c("singida","dodoma")] <- "Central"
+tp$zone[tp$region %in% c("rukwa", "mbeya","iringa")] <- "Southern Highlands"
+tp$zone[tp$region %in% c("pwani","morogoro", "dar es salaam")] <- "Eastern"
+tp$zone[tp$region %in% c("lindi","ruvuma", "mtwara")] <- "Southern"
+tp$zone[tp$region %in% c("kaskazini unguja", "kusini unguja", "mjini magharibi",
+                         "kaskazini pemba", "kusini pemba")] <- "Zanzibar"
 
+# make some log and squared values
+tp$zone <- factor(tp$zone)
+tp$lassets <- log(tp$assets + 1)
+tp$lab2 <- tp$lab^2
+tp$lassets2 <- tp$lassets^2
+tp$nitrogen2 <- tp$nitrogen^2
 
-tp <- select(tp, hhid, year, y12, region, plot_yld, maize_yld, nitrogen, lab, assets, everything())
-bad <- grep("-", tp$hhid)
-tp <- tp[-bad,]
-tp <- tp[tp$rural %in% 1,]
+# drop anything from zanzibar - still some observations from dar-es-salaam?? I would expect them to
+# drop out once we removed the urban values
+tp <- tp[!(tp$zone %in% "Zanzibar"),]
+
+# also get rid of maize fields where yield is NA or where a zero value is
+# recorded for maize yld
+tp <- tp[!is.na(tp$maize_yld) & !(tp$maize_yld %in% 0),]
 
 # get rid of everything you do not need
 x=ls()
 x <-x[!(x=="tp")]
 rm(list=x)
-
+rm(x)
 # write_dta(tp, "M:/TzAYG/data/tp.dta")

@@ -113,6 +113,10 @@ plot_vars <- select( AG3A, y3_hhid, plotnum, soil=ag3a_10, soilq=ag3a_11,
                pestQ=ag3a_62_1, pestU=ag3a_62_2, short_rain=ag3a_81,
                short_rain_crop=ag3a_82, owned=ag3a_25 )
 
+# make the two voucher variables into factors
+plot_vars$voucher2 <- as_factor(plot_vars$voucher2)
+plot_vars$voucher1 <- as_factor(plot_vars$voucher1)
+
 # revalue the ownership variable to only OWNED or RENTED
 # plot_vars$owned <- revalue(plot_vars$owned,
 #                            c( "SHARED - RENT"="RENTED",
@@ -136,10 +140,13 @@ s <- select( plot_vars, y3_hhid, plotnum, inorg_type1, inorg_type2 )
 m <- melt( s, id = c( 'y3_hhid', 'plotnum' ) ) 
 
 # filter m for eachtype of fertilizer and join this up with the quantity
+# apparently have to remove label attributes for y3_hhid and plotnum in m
+attr(m$y3_hhid, "label") <- attr(m$plotnum, "label") <- NULL
+        
 ty1 <- filter( m, variable == 'inorg_type1' ) %>%
-        left_join( select(plot_vars, y3_hhid, plotnum, quantity=inorgQ1, price=inorg_price1 ) ) 
+        left_join( select(plot_vars, y3_hhid, plotnum, quantity=inorgQ1, price=inorg_price1, voucher=voucher1 ) ) 
 ty2 <- filter( m, variable == 'inorg_type2' ) %>%
-        left_join( select(plot_vars, y3_hhid, plotnum, quantity=inorgQ2, price=inorg_price2 ) ) 
+        left_join( select(plot_vars, y3_hhid, plotnum, quantity=inorgQ2, price=inorg_price2, voucher=voucher2 ) ) 
 tot <- rbind( ty1, ty2 ) %>% rename( type=value )
 
 # read in fertilizer composition table
@@ -167,6 +174,8 @@ fert_vars$N <- ifelse(is.na(fert_vars$N), 0, fert_vars$N)
 # into its nitrogen components, calcualting a weighted average of the prices
 # and finally using this weighted price and the total quantity of nitrogen to
 # make a unit price of nitrogen.
+fert_vars <- mutate(fert_vars, price=ifelse(voucher %in% "YES", price/2, price))
+
 fert_vars <- group_by( fert_vars, y3_hhid, plotnum ) %>%
         summarise( price_type1=price[variable %in% "inorg_type1"],
                    price_type2=price[variable %in% "inorg_type2"],
@@ -176,12 +185,13 @@ fert_vars <- group_by( fert_vars, y3_hhid, plotnum ) %>%
                    phosphorous_kg=sum( P, na.rm=TRUE ),
                    potassium_kg=sum( K, na.rm=TRUE ),
                    nitrogen_price=(price_type1*quantity_type1+price_type2*quantity_type2)/nitrogen_kg,
-                   nitrogen_unit_price=nitrogen_price/nitrogen_kg)
+                   nitrogen_unit_price=nitrogen_price/nitrogen_kg,
+                   voucher=ifelse(any(voucher %in% "YES"), 1, 0))
 
 # join fertilizer information with other important variables
 plot_vars <- left_join( plot_vars, fert_vars ) %>% left_join( lab )
 
-# write.csv(plot_vars, "M:/TZAYG/data/2012/plot_variables_w3.csv", row.names=FALSE)
+# write_dta(plot_vars, "M:/TZAYG/data/2012/plot_variables_w3.dta")
 
 # -------------------------------------
 # consumer prices of foodstuffs

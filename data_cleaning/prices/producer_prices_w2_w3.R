@@ -53,11 +53,14 @@ table(factor(maize_price_w2$x))
 # maize_price_w2$final_price <- ifelse(is.na(maize_price_w2$unit_price2), maize_price_w2$unit_price1, average_price)
 
 # read in regions to match up with the household producer prices.
-HQSECA <- read.dta('C:/Users/morle001/Dropbox/Micro_IPOP/Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_A.dta', convert.factors = TRUE) 
-y2commlink <- read.dta("./Data/Tanzania/2010_11/Stata/TZNPS2COMDTA/y2commlink.dta", convert.factors = TRUE)
-
-hhid_region_w2 <- unique(select(HQSECA, y2_hhid, region)) %>% 
-        mutate(region = factor(region, labels = tolower(levels(factor(y2commlink$id_01)))))
+region_names <- c("dodoma", "arusha", "kilimanjaro", "tanga", "morogoro", "pwani",
+                  "dar es salaam", "lindi", "mtwara", "ruvuma", "iringa", "mbeya",
+                  "singida", "tabora", "rukwa", "kigoma", "shinyanga", "kagera",
+                  "mwanza", "mara", "manyara", "kaskazini unguja", "kusini unguja",
+                  "mjini magharibi", "kaskazini pemba", "kusini pemba")
+hhid_region_w2 <- read_dta("C:/Users/morle001/Dropbox/Micro_IPOP/Data/Tanzania/2010_11/Stata/TZNPS2HH1DTA/HH_SEC_A.dta")
+hhid_region_w2 <- select(hhid_region_w2, y2_hhid, region)
+hhid_region_w2$region <- factor(hhid_region_w2$region, labels=region_names)
 
 # merge regions with the prices
 maize_price_w2 <- left_join(maize_price_w2, hhid_region_w2)
@@ -71,7 +74,7 @@ by_region <- group_by(maize_price_w2, region) %>% summarise(avg_price=mean(value
 # calculat the average price by buyer type and region
 by_buyer_region <- group_by(maize_price_w2, x, region) %>% summarise(avg_price=mean(value), N=n())
 
-# write.csv(maize_price_w2, "M:/TZAYG/data/2012/producer_prices_w3.csv", row.names=FALSE)
+# write_dta(by_buyer_region, "M:/TZAYG/data/2010/producer_prices_w2.dta")
 
 rm(list=ls())
 
@@ -79,10 +82,10 @@ rm(list=ls())
 # producer prices wave 3
 # -------------------------------------
 
-filepath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Tanzania/2012/Data/"
+filepath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Tanzania/2012/Data"
 setwd( filepath )
 
-prod_price_w3 <- read_spss("AG_SEC_5A.SAV")
+prod_price_w3 <- read_dta("AG_SEC_5A.dta")
 maize_price_w3 <- subset(prod_price_w3, zaocode==11 & ag5a_01==1) %>% select(y3_hhid:ag5a_13)
 
 maize_price_w3 <- transmute(maize_price_w3, y3_hhid, ag5a_04, unit_price1=ag5a_06/ag5a_05, ag5a_11,
@@ -115,8 +118,9 @@ table(factor(maize_price_w3$x))
 filepath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Tanzania/2012/Data/"
 setwd( filepath )
 
-hhid_region_w3 <- read.spss( "HH_SEC_A.SAV", to.data.frame=TRUE ) %>%
+hhid_region_w3 <- read_dta( "HH_SEC_A.dta" ) %>%
         select( y3_hhid, region=hh_a01_1 )
+hhid_region_w3$region <- as_factor(hhid_region_w3$region)
 
 # also need to change the levels of the regions to lowercase
 levels( hhid_region_w3$region ) <- tolower( levels( hhid_region_w3$region ) )
@@ -138,5 +142,5 @@ by_buyer_region <- group_by(maize_price_w3, x, region) %>% summarise(avg_price=m
 
 # prices may need to be winsored for outliers somehow
 
-# write.csv(maize_price_w3, "M:/TZAYG/data/2012/producer_prices_w3.csv", row.names=FALSE)
+# write_dta(by_buyer_region, "M:/TZAYG/data/2012/producer_prices_w3.dta")
 

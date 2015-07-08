@@ -105,4 +105,4 @@ output_maize <- ddply(output_maize, .(y2_hhid, plotnum),
 
 
 
-# write.csv(output_maize, "M:/TZAYG/data/2010/output_index_w2.csv", row.names=FALSE)
+# write_dta(output_maize, "M:/TZAYG/data/2010/output_index_w2.dta")

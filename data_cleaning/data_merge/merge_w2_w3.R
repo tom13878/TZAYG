@@ -3,6 +3,7 @@
 # -------------------------------------
 
 setwd("M:/TZAYG/data")
+library(haven)
 library(dplyr)
 
 
@@ -11,16 +12,16 @@ library(dplyr)
 # read in all the different data files that you need.
 # plots are the basic unit here and we need output more than anything
 # else so get that first
-output_w2 <- read.csv("./2010/output_index_w2.csv")
+output_w2 <- read_dta("./2010/output_index_w2.dta")
 
 # next up get the plot variables
-plot_vars_w2 <- read.csv("./2010/plot_variables_w2.csv")
+plot_vars_w2 <- read_dta("./2010/plot_variables_w2.dta")
 
 # now grab the area variables
-areas_w2 <- read.csv("./2010/areas_w2.csv")
+areas_w2 <- read_dta("./2010/areas_w2.dta")
 
 # and finally get the household information
-HH_info_w2 <- read.csv("./2010/HH_total_w2.csv")
+HH_info_w2 <- read_dta("./2010/HH_total_w2.dta")
 
 # now join everything together
 section_wave2 <- left_join(output_w2, plot_vars_w2)
@@ -39,7 +40,7 @@ section_wave2$y3_hhid <- NA
 output_w3 <- read.csv("./2012/output_index_w3.csv")
 
 # next up get the plot variables
-plot_vars_w3 <- read.csv("./2012/plot_variables_w3.csv")
+plot_vars_w3 <- read_dta("./2012/plot_variables_w3.dta")
 
 # now grab the area variables - which are in the cleaned
 # data directory
@@ -77,6 +78,12 @@ section_wave2$price_type1 <- as.numeric(section_wave2$price_type1)
 section_wave2$inorg_price1 <- as.numeric(section_wave2$inorg_price1)
 section_wave2$inorg_price2 <- as.numeric(section_wave2$inorg_price2)
 section_wave2$y3_hhid <- factor(section_wave2$y3_hhid)
+section_wave3$inorg_price2 <- as.numeric(section_wave3$inorg_price2)
+section_wave3$cash_crop <- as.integer(ifelse(section_wave3$cash_crop %in% TRUE, 1, 0))
+section_wave3$beans <- as.integer(ifelse(section_wave3$beans %in% TRUE, 1, 0))
+section_wave3$sex <- as.integer(ifelse(section_wave3$sex %in% "male", 1, 0))
+section_wave2$y3_hhid <- as.character(section_wave2$y3_hhid)
+section_wave3$inorg_price1 <- as.numeric(section_wave3$inorg_price1)
 all(sapply(section_wave3, class) == sapply(section_wave2, class))
 
 # make sure that the y2_hhid variables are both characters and rename them
@@ -177,3 +184,4 @@ panel <- rbind(section_wave2, section_wave3)
 # and write the panel to a file for use later
 # write.csv(panel, "panel.csv", row.names=FALSE)
 # write_dta(panel, "panel.dta")
+
